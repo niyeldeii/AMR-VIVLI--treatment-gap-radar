@@ -8,14 +8,20 @@ _MIC = re.compile(r"^\s*(<=|>=|<|>|=)?\s*([0-9]*\.?[0-9]+)\s*$")
 _NULLISH = {"", "nan", "na", "n/a", "nt", "ntd", "-", ".", "none", "null"}
 
 
+def _norm_ops(s: str) -> str:
+    return (s.replace("≤", "<=").replace("≥", ">=")
+             .replace("<=", "<=").replace("＜", "<").replace("＞", ">"))
+
+
 def parse_mic(value):
     """Return (mic_value: float|nan, op: str). op in {<=,>=,<,>,=}.
 
     '<=0.015' -> (0.015,'<='); '>8' -> (8.0,'>'); '2' -> (2.0,'='); junk -> (nan,'').
+    Handles unicode <= (U+2264) / >= (U+2265).
     """
     if value is None or (isinstance(value, float) and np.isnan(value)):
         return (np.nan, "")
-    s = str(value).strip()
+    s = _norm_ops(str(value).strip())
     if s.lower() in _NULLISH:
         return (np.nan, "")
     m = _MIC.match(s)
@@ -31,6 +37,7 @@ def parse_mic(value):
 def parse_mic_series(s: pd.Series):
     """Vectorized parse of a MIC column. Returns (values: Series[float], ops: Series[str])."""
     ss = s.astype("string").str.strip()
+    ss = ss.str.replace("≤", "<=", regex=False).str.replace("≥", ">=", regex=False)
     ss = ss.mask(ss.str.lower().isin(_NULLISH))
     ext = ss.str.extract(r"^\s*(<=|>=|<|>|=)?\s*([0-9]*\.?[0-9]+)\s*$")
     val = pd.to_numeric(ext[1], errors="coerce").astype(float)

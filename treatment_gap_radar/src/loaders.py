@@ -9,7 +9,10 @@ Common schema (one row per isolate x antibiotic result):
 import numpy as np
 import pandas as pd
 
+import re as _re
+
 from . import canon
+from . import breakpoints as bp
 from .mic import parse_mic_series
 from .paths import raw_path
 
@@ -108,3 +111,186 @@ def iter_atlas_long(chunksize=200_000):
         out["isolate_id"] = "ATLAS:" + out["Isolate Id"].astype(str)
         out["source"] = "ATLAS"
         yield _finalize(out)
+
+
+# ----------------------------------------------------- generic MIC-only datasets
+def _clean_drug_header(col):
+    """Strip MIC/result noise from a column header before canonical lookup."""
+    s = str(col).replace("\n", " ")
+    s = _re.sub(r"[/_]", " ", s)          # separators -> space (so \b sees 'mic' in CAZ_MIC)
+    s = _re.sub(r"\(.*?\)", " ", s)
+    s = _re.sub(r"\b(mic|mic50|mic90|broth|mgit|fixed at \d+|at \d+\s*\w*)\b", " ", s, flags=_re.I)
+    return _re.sub(r"\s+", " ", s).strip()
+
+
+def detect_drug_cols(columns, meta_cols, cutoff=94):
+    """Return {raw_col: (canonical, class)} for columns that resolve to a known drug."""
+    out = {}
+    for c in columns:
+        if c in meta_cols:
+            continue
+        canon_name, cls = canon.canon_drug(_clean_drug_header(c), fuzzy=True, cutoff=cutoff)
+        if canon_name:
+            out[c] = (canon_name, cls)
+    return out
+
+
+def melt_mic_dataset(df, source, *, id_col=None, species_col, country_col=None,
+                     region_col=None, year=None, age_col=None, age_group_col=None,
+                     specimen_col=None, drug_cols=None, meta_cols=None):
+    """Generic wide-MIC -> long loader. Derives S/I/R via CLSI breakpoints.
+
+    `year` may be a column name or a precomputed Series aligned to df.index.
+    """
+    df = df.copy()
+    meta_cols = set(meta_cols or [])
+    meta_cols |= {c for c in [id_col, species_col, country_col, region_col, age_col,
+                              age_group_col, specimen_col] if c}
+    if isinstance(year, str):
+        meta_cols.add(year)
+    drugmap = drug_cols or detect_drug_cols(df.columns, meta_cols)
+    if not drugmap:
+        raise ValueError(f"{source}: no drug columns detected")
+
+    base = pd.DataFrame(index=df.index)
+    base["species_raw"] = df[species_col].astype(str)
+    base["country"] = df[country_col] if country_col else pd.NA
+    base["region"] = df[region_col] if region_col else pd.NA
+    base["age"] = pd.to_numeric(df[age_col], errors="coerce") if age_col else pd.NA
+    base["age_group"] = df[age_group_col] if age_group_col else pd.NA
+    base["specimen"] = df[specimen_col] if specimen_col else pd.NA
+    if isinstance(year, str):
+        base["year"] = pd.to_numeric(df[year], errors="coerce")
+    elif year is not None:
+        base["year"] = pd.to_numeric(pd.Series(year, index=df.index), errors="coerce")
+    else:
+        base["year"] = pd.NA
+    base["isolate_id"] = (source + ":" +
+                          (df[id_col].astype(str) if id_col else pd.Series(df.index.astype(str), index=df.index)))
+
+    frames = []
+    for raw, (cdrug, cls) in drugmap.items():
+        sub = base.copy()
+        sub["antibiotic"] = cdrug
+        sub["drug_class"] = cls
+        sub["mic"], sub["mic_op"] = parse_mic_series(df[raw])
+        frames.append(sub[sub["mic"].notna()])
+    out = pd.concat(frames, ignore_index=True)
+
+    _add_pathogen_cols(out, out["species_raw"])
+    out["country_iso3"] = _map_unique(out["country"].astype(str), canon.canon_country)
+    # pediatric from numeric age if present
+    if age_col:
+        out["pediatric"] = out["age"].map(lambda a: (a < 18) if pd.notna(a) else pd.NA)
+    elif age_group_col:
+        out["pediatric"] = _map_unique(out["age_group"].astype(str), _pediatric)
+    else:
+        out["pediatric"] = pd.NA
+    out["source"] = source
+
+    # S/I/R via breakpoints (per unique pathogen/gram/drug/mic to limit calls)
+    key = out[["pathogen", "gram", "antibiotic", "mic", "mic_op"]].drop_duplicates()
+    key["sir"] = key.apply(lambda r: bp.interpret(r["pathogen"], r["gram"], r["antibiotic"],
+                                                  r["mic"], r["mic_op"]), axis=1)
+    out = out.merge(key, on=["pathogen", "gram", "antibiotic", "mic", "mic_op"], how="left")
+    out["sir"] = out["sir"].astype("string")
+    return _finalize(out)
+
+
+# --------------- per-dataset thin wrappers (handle each file's quirks) ----------
+def load_soar_201818():
+    df = pd.read_csv(raw_path("SOAR_201818"), dtype=str, low_memory=False)
+    return melt_mic_dataset(df, "SOAR_201818", id_col="IHMANUMBER", species_col="ORGANISMNAME",
+                            country_col="COUNTRY", region_col="REGION", year="YEARCOLLECTED",
+                            age_col="AGE", specimen_col="BODYLOCATION",
+                            meta_cols={"GENDER", "BETALACTAMASE", "DEID_CAT_AGE", "INVESTIGATORNAME"})
+
+
+def load_soar_201910():
+    df = pd.read_excel(raw_path("SOAR_201910"))
+    yr = pd.to_datetime(df["Collection Date"], errors="coerce").dt.year
+    return melt_mic_dataset(df, "SOAR_201910", id_col="Isolate Number", species_col="Organism",
+                            country_col="Country", year=yr, age_col="Age",
+                            specimen_col="BodyLocation",
+                            meta_cols={"Centre", "Gender", "Betalactamase", "Collection Date"})
+
+
+def load_soar_207965():
+    df = pd.read_excel(raw_path("SOAR_207965"), sheet_name="Sheet2")
+    return melt_mic_dataset(df, "SOAR_207965", id_col="IHMA #", species_col="FinalOrganismName",
+                            country_col="Country", region_col="Region", year="YearCollected",
+                            age_col="Age", specimen_col="BodyLocation",
+                            meta_cols={"Investigator", "InvestigatorName", "OriginalOrganismName",
+                                       "OrganismFamilyName", "GramType", "Gender", "FacilityName",
+                                       "Evaluable", "Beta Lactamase"})
+
+
+def load_innoviva():
+    df = pd.read_excel(raw_path("INNOVIVA_ACINETO"))
+    return melt_mic_dataset(df, "INNOVIVA", id_col="Vivli No.", species_col="OrganismName",
+                            country_col="Country", region_col="Region", year="YearCollected",
+                            age_col="Age", specimen_col="BodyLocation",
+                            meta_cols={"Gender", "FacilityName"})
+
+
+def load_sidero():
+    df = pd.read_excel(raw_path("SIDERO_WT"), sheet_name="Five year Surveillance data")
+    return melt_mic_dataset(df, "SIDERO_WT", species_col="Organism Name", country_col="Country",
+                            region_col="Region", year="Year Collected", specimen_col="Body Location",
+                            meta_cols={"Date Collected"})
+
+
+def load_gears():
+    df = pd.read_excel(raw_path("GEARS"), sheet_name="Data")
+    return melt_mic_dataset(df, "GEARS", id_col="Isolate", species_col="Organism",
+                            country_col="Country", region_col="Region", year="Year",
+                            age_col="Age", specimen_col="BodySite",
+                            meta_cols={"Family", "Gender", "Facility"})
+
+
+def load_keystone():
+    df = pd.read_excel(raw_path("KEYSTONE"), sheet_name="Line List")
+    df.columns = [str(c).replace("\n", " ").strip() for c in df.columns]
+    return melt_mic_dataset(df, "KEYSTONE", species_col="Organism", country_col="Country",
+                            year="Study Year", age_col="Age", specimen_col="Specimen Type",
+                            meta_cols={"Collection Number", "Continent", "US Census Division",
+                                       "Nosocomial", "Gender", "Medical Service", "Infection Source",
+                                       "Infection Type", "Source of Bloodstream infection",
+                                       "Ventilator-Associated Pneumonia", "Intensive Care Unit (ICU)",
+                                       "Cystic Fibrosis (CF) Patient"})
+
+
+def load_gasar():
+    df = pd.read_excel(raw_path("GASAR_III"), sheet_name="Sheet1")  # header row 0; leading NaN rows drop out
+    return melt_mic_dataset(df, "GASAR_III", id_col="Isolate ID", species_col="Species",
+                            country_col="Country", year="Year", specimen_col="Source",
+                            meta_cols={"Gene Combination", "Phenotypic Combination"})
+
+
+def load_plea_i():
+    df = pd.read_excel(raw_path("PLEA_I"), sheet_name="Sheet 1", header=1)
+    return melt_mic_dataset(df, "PLEA_I", id_col="Isolate ID", species_col="Species",
+                            country_col="Country", year="Year", specimen_col="Source",
+                            meta_cols={"Gene Combination", "Phenotypic Combination"})
+
+
+def load_plea_ii():
+    df = pd.read_excel(raw_path("PLEA_II"), sheet_name="MIC of Ploymyxin ", header=2)
+    return melt_mic_dataset(df, "PLEA_II", id_col="Isolate ID", species_col="Species",
+                            country_col="Country", year="Year", specimen_col="Source",
+                            meta_cols={"Phenotypic Combination"})
+
+
+def load_dream():
+    """M. tuberculosis (DREAM). MIC columns -> TB critical-concentration breakpoints."""
+    df = pd.read_excel(raw_path("DREAM_TB"), sheet_name="DREAM Dataset")
+    gene_cols = [c for c in df.columns if any(k in str(c) for k in
+                 ("Rv0678", "atpE", "pepQ", "Rv1979", "_NT", "_AA"))]
+    return melt_mic_dataset(df, "DREAM_TB", species_col="Organism", country_col="Country",
+                            region_col="Continent", year="Year Collected", specimen_col="Specimen",
+                            meta_cols=set(gene_cols) | {"SubType"})
+
+
+MIC_LOADERS = [load_soar_201818, load_soar_201910, load_soar_207965,
+               load_innoviva, load_sidero, load_gears, load_keystone,
+               load_gasar, load_plea_i, load_plea_ii, load_dream]
