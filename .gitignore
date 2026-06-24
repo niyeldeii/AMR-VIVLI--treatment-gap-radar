@@ -1,0 +1,40 @@
+# =====================================================================
+#  PROTECT RESTRICTED VIVLI AMR DATA — allowlist strategy.
+#  Everything at the repo root is IGNORED by default; we then re-include
+#  ONLY the code/meta files. This guarantees the licensed surveillance
+#  data (Vivli DUA) and the R&D Hub export are never committed or
+#  bundled to any cloud service.
+# =====================================================================
+
+# 1) Ignore every top-level entry (all the dataset folders, PDFs, etc.)
+/*
+
+# 2) Re-include repo meta + the code project folder
+!/.gitignore
+!/README.md
+!/PLAN.md
+!/treatment_gap_radar/
+
+# 3) Defense-in-depth: even inside the code folder, never track data
+#    artifacts or secrets, in case data is ever copied there.
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.parquet
+*.feather
+*.doc
+*.docx
+*.pdf
+treatment_gap_radar/data_raw/
+treatment_gap_radar/data_processed/
+treatment_gap_radar/figures/*.csv
+
+# 4) Python / Jupyter cruft
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+env/
+.env
+.DS_Store
