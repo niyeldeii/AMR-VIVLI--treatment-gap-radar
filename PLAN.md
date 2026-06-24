@@ -24,6 +24,10 @@ surfaces.
 - Scope: **full framework** — all eligible datasets, all six resistance indicators.
 - Pathogens: **all bacteria** (Gram-negative, Gram-positive, TB). **Exclude fungal**
   (`ATLAS_Antifungals`) from the core; keep as an optional appendix only.
+- **Data handling: path-config, run locally.** The DUA-restricted Vivli data and `Projects.xlsx`
+  stay out of git and are read in place from the challenge folder. Code locates them via a single
+  configurable root (`TGR_DATA_ROOT`, default = the folder one level above this repo). No data is
+  copied into the repo, uploaded, or committed. See "Path & config resolution" below.
 
 ## Data inventory (already on disk, NOT in git)
 
@@ -49,28 +53,43 @@ Root: the challenge folder containing this repo. Data referenced by relative pat
 Current `base` conda env is broken: **pandas 2.2.2 cannot import under NumPy 2.5.0** (binary
 built for NumPy 1.x), and **`xlrd` is missing** (required for the legacy `.xls` SPIDAAR files).
 
-Fix in a dedicated env so we don't disturb `base`:
+Fix in a dedicated env so we don't disturb `base`. At build time this is captured as
+`treatment_gap_radar/requirements.txt` (pins decided, not yet written):
 
 ```bash
 conda create -n tgr python=3.12 -y
 conda activate tgr
-pip install "numpy==1.26.4" "pandas==2.2.2" openpyxl xlrd \
-            matplotlib seaborn plotly streamlit pycountry rapidfuzz jupyter
+pip install -r treatment_gap_radar/requirements.txt
 ```
 
-(`numpy==1.26.4` is the safe pin against pandas 2.2.2; `pycountry` for ISO country
-normalization; `rapidfuzz` for fuzzy pathogen/drug-name matching across datasets.)
+Pinned dependency set (the resolved `requirements.txt` content):
+
+| Package | Pin | Why |
+|---|---|---|
+| numpy | `==1.26.4` | safe pin vs pandas 2.2.2 — NumPy 2.x breaks the pandas 2.2.2 ABI (the current blocker) |
+| pandas | `==2.2.2` | matches the challenge env |
+| openpyxl | `>=3.1` | `.xlsx` readers |
+| xlrd | `>=2.0` | legacy `.xls` (SPIDAAR) — currently **missing** |
+| pyyaml | `>=6.0` | config loading |
+| pyarrow | `>=15.0` | parquet processed outputs |
+| pycountry | `>=23.12` | ISO-3 country normalization |
+| rapidfuzz | `>=3.6` | fuzzy pathogen/drug-name matching |
+| matplotlib / seaborn / plotly | `>=3.8 / >=0.13 / >=5.20` | static charts + interactive choropleths |
+| streamlit | `>=1.33` | dashboard |
+| jupyter / nbconvert | `>=1.0 / >=7.0` | notebook deliverable + headless execution for verification |
 
 ## Proposed project structure
 
 ```
 treatment_gap_radar/
+  requirements.txt        # pinned env (see table above)
   config/
-    pathogens.yaml        # canonical pathogen names + Gram class + WHO priority tier
-    antibiotics.yaml      # canonical drug names + drug class + priority-drug flag
-    dataset_map.yaml      # per-dataset column → canonical-field mapping
+    pathogens.yaml        # canonical pathogen names + Gram class + WHO priority tier + priority drugs
+    antibiotics.yaml      # canonical drug names + drug class + priority flag + alias/code map
+    dataset_map.yaml      # per-dataset column → canonical-field mapping (filled in Phase 1)
     weights.yaml          # indicator weights for RNI/RAI
   src/
+    paths.py              # single source of truth for data root, raw-file resolution, config loading
     loaders.py            # one loader per dataset → tidy DataFrame
     harmonize.py          # wide→long, name normalization, S/I/R derivation
     breakpoints.py        # CLSI/EUCAST MIC breakpoints where _I absent
@@ -79,12 +98,50 @@ treatment_gap_radar/
     rai.py                # R&D Attention Index from Projects.xlsx
     gap.py                # join RNI vs RAI, quadrant classification
   data_processed/         # parquet outputs (gitignored)
-  figures/                # exported static charts/maps
+  figures/                # exported static charts/maps (gitignored)
   notebooks/
     Treatment_Gap_Radar.ipynb   # end-to-end narrative deliverable
   app/
     dashboard.py          # Streamlit app
 ```
+
+## Path & config resolution (design resolved)
+
+`src/paths.py` is the only module that knows where anything lives — no other module hard-codes a
+path. Resolved design:
+
+- **Anchors:** `SRC_DIR → PKG_ROOT (treatment_gap_radar/) → REPO_ROOT (git repo)`. The restricted
+  data lives in the *challenge folder* one level above the repo, so
+  `DATA_ROOT = os.environ.get("TGR_DATA_ROOT", REPO_ROOT.parent)`. Set `TGR_DATA_ROOT` to relocate.
+- **Raw-file map:** a `RAW_RELATIVE` dict maps each dataset key (`atlas`, `soar_201818`,
+  `spidaar_isolate`, `projects`, …) to its path relative to `DATA_ROOT`. Datasets whose exact XLSX
+  filename is long/uncertain map to their **folder**; `resolve_file(key, pattern="*.xlsx")` globs
+  inside it and returns the single match. CSV/XLS entries map straight to the file.
+- **Graceful absence:** `resolve_file` raises a clear "data is DUA-restricted and not in the repo;
+  set TGR_DATA_ROOT" error when missing; `data_available()` is a cheap probe (does the ATLAS file
+  exist?) so the notebook/app can degrade instead of crashing when run without the data.
+- **Config loader:** `load_config(name)` reads + `lru_cache`s `config/<name>.yaml`. Processed
+  parquet paths (`ISOLATES_LONG`, `RNI_PARQUET`, `RAI_PARQUET`, `GAP_PARQUET`, …) are constants here.
+
+## Canonical registries (design resolved)
+
+`config/pathogens.yaml` and `config/antibiotics.yaml` are the harmonization backbone; their schemas
+and key decisions are settled:
+
+- **`pathogens.yaml`** — each canonical species carries `gram` (`negative` / `positive` /
+  `acid_fast` for mycobacteria), `who_tier` (from the **WHO Bacterial Priority Pathogens List
+  2024**: critical / high / medium), an `aliases` list (raw strings across datasets, incl.
+  genus-only fallbacks like `Acinetobacter spp` and phenotype-suffixed forms like
+  `Staphylococcus aureus, MSSA`), and `priority_drugs` (last/primary-resort agents feeding the
+  *therapeutic scarcity* indicator). A `gram_groups` block names the coarse buckets
+  (Gram-negative / Gram-positive / Mycobacteria) at which the **RNI↔RAI join** happens.
+- **`antibiotics.yaml`** — each canonical drug carries `drug_class` (the class map driving the MDR
+  ≥3-classes indicator), a `priority` flag (WHO Reserve / last-resort), and `aliases` that include
+  **dataset abbreviation codes** (e.g. SOAR201910 `AMC/AMP/LEV/MXF…`, GEARS `<CODE>_MIC`, DREAM-TB
+  `INH/RMP/BDQ…`). Matching is case-insensitive after stripping whitespace and a trailing
+  `_MIC`/`_I` suffix; `rapidfuzz` covers near-misses on full names, but **codes must be listed
+  explicitly**. A couple of codes (`CDN`→cefdinir, `DIN`→clindamycin) are best-guess and flagged
+  to confirm against each dataset's data dictionary during loader work.
 
 ## Phase 1 — Profiling & harmonization (the real engineering work)
 
@@ -177,7 +234,20 @@ duplicated in the app.
 6. **Dashboard**: `streamlit run app/dashboard.py`, load it, exercise filters, screenshot the gap
    radar to confirm it renders against the processed data.
 
+## Resolved this planning pass
+- **Data handling** = path-config, run locally (`TGR_DATA_ROOT`); nothing copied or committed.
+- **Dependency pins** decided (table above) — fixes the NumPy/pandas blocker and adds xlrd.
+- **Path resolution** = `src/paths.py` with `RAW_RELATIVE` map + folder-glob `resolve_file`.
+- **Canonical registries** = `pathogens.yaml` / `antibiotics.yaml` schemas + alias/code conventions
+  + WHO-2024 tiers + the Gram-class join granularity.
+
 ## Open items to confirm during build (not blockers)
-- Exact column layouts of the un-profiled XLSX/XLS datasets (resolved in Phase 1 profiling).
+- Exact column layouts of the un-profiled XLSX/XLS datasets (resolved in Phase 1 profiling), and
+  confirming the best-guess drug codes (`CDN`, `DIN`) against each dataset's data dictionary.
 - Breakpoint source: default to **CLSI**; note EUCAST alternative. Coverage gaps documented.
 - Final indicator weights (start equal; tune with sensitivity analysis).
+
+## Status
+Planning only — **no implementation code written yet**. The scaffold (configs, `paths.py`,
+`requirements.txt`) was prototyped to validate these decisions, then rolled back to keep the repo
+in a clean plan-only state. Say the word and I'll regenerate it and start Phase 1.
