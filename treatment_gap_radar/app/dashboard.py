@@ -3,6 +3,7 @@
 Run:  streamlit run treatment_gap_radar/app/dashboard.py
 Reads precomputed parquet outputs (build them with `python -m src.pipeline`).
 """
+import importlib
 import sys
 from pathlib import Path
 
@@ -12,6 +13,8 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # treatment_gap_radar/
 from src import viz                                               # noqa: E402
 from src.paths import PROCESSED_DIR                               # noqa: E402
+
+importlib.reload(viz)   # pick up the latest viz on Streamlit Cloud hot-reload (avoid stale module)
 
 st.set_page_config(page_title="Treatment Gap Radar", layout="wide", page_icon="🛰️")
 STRETCH = "stretch"
@@ -256,6 +259,19 @@ with tabs[7]:
 # ============================================================= 8. ABOUT
 with tabs[8]:
     st.markdown("""
+### What's in this dashboard
+- **Overview** — the pitch plus the headline gap quadrant.
+- **Gap Radar** — Resistance Need vs R&D Attention scatter, the priority-gap table, the all-pathogen
+  indicator heatmap, and a CSV download of the full results.
+- **Pathogen explorer** — pick any pathogen + antibiotic to see its six-indicator *radar profile*, a
+  world resistance map, the time trend, and the bootstrap 95% CI + logistic trend statistics.
+- **Trends & rigor** — the resistance-trend forest plot, PCA-justified indicator weighting, and the
+  weight-sensitivity analysis (showing rankings are robust).
+- **Blind-spot prediction** — the ML model's accuracy on unseen countries and its predicted
+  resistance for under-surveilled regions, with a CSV download.
+- **Surveillance coverage** — a world map of data volume highlighting blind spots.
+- **Methodology** & **Findings & implications** — how the framework works and what it means.
+
 ### Data governance
 Raw Vivli data is **restricted (Data Use Agreement)** and is **not** published — only aggregate
 results (minimum cell count **n ≥ 30**). Isolate-level data stays local.
