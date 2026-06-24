@@ -14,6 +14,7 @@ from src import viz                                               # noqa: E402
 from src.paths import PROCESSED_DIR                               # noqa: E402
 
 st.set_page_config(page_title="Treatment Gap Radar", layout="wide", page_icon="🛰️")
+STRETCH = "stretch"
 
 
 @st.cache_data
@@ -25,8 +26,16 @@ def have(name):
     return (PROCESSED_DIR / name).exists()
 
 
+def chart(fig, key):
+    st.plotly_chart(fig, width=STRETCH, key=key)
+
+
+def table(df, **kw):
+    st.dataframe(df, width=STRETCH, **kw)
+
+
 def dl(df, label, fname):
-    st.download_button(label, df.to_csv().encode(), file_name=fname, mime="text/csv")
+    st.download_button(label, df.to_csv().encode(), file_name=fname, mime="text/csv", key="dl_" + fname)
 
 
 if not have("gap.parquet"):
@@ -72,7 +81,7 @@ surfaces where the world is *under-developing* therapies relative to need.
     c3.metric("R&D tracked", "$18.9 B")
     if rs is not None:
         c4.metric("Indicators on 1 PCA axis", f"{rs['pc1_var']*100:.0f}%")
-    st.plotly_chart(viz.gap_quadrant(gap), use_container_width=True)
+    chart(viz.gap_quadrant(gap), "ov_gap")
     st.success("**Headline:** the clearest gaps are Gram-positive (VRE / *E. faecium*, "
                "*S. epidermidis*); broad-spectrum Gram-negative R&D already covers the "
                "Enterobacterales; the biggest blind spot is geographic (LMIC surveillance).")
@@ -80,19 +89,18 @@ surfaces where the world is *under-developing* therapies relative to need.
 # ============================================================= 1. GAP RADAR
 with tabs[1]:
     st.subheader("Resistance Need vs R&D Attention")
-    st.plotly_chart(viz.gap_quadrant(gap), use_container_width=True)
+    chart(viz.gap_quadrant(gap), "gr_gap")
     colA, colB = st.columns([2, 1])
     with colA:
         st.subheader("Priority gaps (high need, low attention)")
         pg = gap[gap["quadrant"].str.startswith("PRIORITY")].sort_values("gap_score", ascending=False)
-        st.dataframe(pg[["who", "n_isolates", "RNI", "RAI", "gap_score"]].round(3),
-                     use_container_width=True)
+        table(pg[["who", "n_isolates", "RNI", "RAI", "gap_score"]].round(3))
         dl(gap.round(4), "⬇ Download full gap table (CSV)", "treatment_gap.csv")
     with colB:
         st.subheader("Quadrant counts")
-        st.dataframe(gap["quadrant"].str.split(" \\(").str[0].value_counts().rename("pathogens"))
+        table(gap["quadrant"].str.split(" \\(").str[0].value_counts().rename("pathogens"))
     with st.expander("Indicator heatmap — all pathogens"):
-        st.plotly_chart(viz.indicator_heatmap(rni), use_container_width=True)
+        chart(viz.indicator_heatmap(rni), "gr_heat")
 
 # ============================================================= 2. PATHOGEN EXPLORER
 with tabs[2]:
@@ -116,10 +124,10 @@ with tabs[2]:
     c1, c2 = st.columns(2)
     with c1:
         if patho in rni.index:
-            st.plotly_chart(viz.indicator_radar(patho, rni), use_container_width=True)
-        st.plotly_chart(viz.resistance_choropleth(patho, drug), use_container_width=True)
+            chart(viz.indicator_radar(patho, rni), "pe_radar")
+        chart(viz.resistance_choropleth(patho, drug), "pe_chor")
     with c2:
-        st.plotly_chart(viz.resistance_trend(patho, drug), use_container_width=True)
+        chart(viz.resistance_trend(patho, drug), "pe_trend")
         if have("ci_keypairs.parquet"):
             ci = load("ci_keypairs.parquet")
             row = ci[(ci.pathogen == patho) & (ci.drug == drug)]
@@ -141,8 +149,8 @@ with tabs[3]:
     st.subheader("Resistance trends over time")
     st.caption("Logistic regression of resistance on year — odds ratio per year (95% CI). >1 = rising.")
     if have("trend_models.parquet"):
-        st.plotly_chart(viz.trend_forest(), use_container_width=True)
-        st.dataframe(load("trend_models.parquet").round(4), use_container_width=True)
+        chart(viz.trend_forest(), "tr_forest")
+        table(load("trend_models.parquet").round(4))
     st.divider()
     c1, c2 = st.columns(2)
     with c1:
@@ -152,15 +160,15 @@ with tabs[3]:
                       help="High value = the six indicators measure one underlying 'need' axis, "
                            "so equal weighting is justified.")
             wts = {k.replace("w_", ""): rs[k] for k in rs.index if k.startswith("w_")}
-            st.dataframe(pd.Series(wts, name="PCA-derived weight").round(3))
+            table(pd.Series(wts, name="PCA-derived weight").round(3))
     with c2:
         st.subheader("Rankings are weight-insensitive")
         if have("sensitivity.parquet"):
             st.caption("Spearman correlation of the pathogen ranking vs equal weights (≈1 = robust).")
-            st.dataframe(load("sensitivity.parquet"), use_container_width=True)
+            table(load("sensitivity.parquet"))
     if have("ci_keypairs.parquet"):
         with st.expander("Bootstrap 95% confidence intervals (key pairs)"):
-            st.dataframe(load("ci_keypairs.parquet").round(2), use_container_width=True)
+            table(load("ci_keypairs.parquet").round(2))
 
 # ============================================================= 4. BLIND-SPOT PREDICTION
 with tabs[4]:
@@ -180,18 +188,17 @@ with tabs[4]:
         bp = st.selectbox("Pathogen", paths, index=d0, key="bp_path")
         bdrugs = sorted(preds[preds.pathogen == bp]["antibiotic"].unique())
         bd = st.selectbox("Antibiotic", bdrugs, key="bp_drug")
-        st.plotly_chart(viz.blindspot_continent(bp, bd), use_container_width=True)
+        chart(viz.blindspot_continent(bp, bd), "bs_chart")
         st.caption("Red bars = thin/absent surveillance (≤2 countries) — the model's best estimate.")
         with st.expander("All predicted blind spots (thin surveillance, highest predicted resistance)"):
             thin = preds[preds["thin_surveillance"]].sort_values("pred_pctR", ascending=False)
-            st.dataframe(thin[["pathogen", "antibiotic", "continent", "n_countries", "pred_pctR"]]
-                         .round(3), use_container_width=True)
+            table(thin[["pathogen", "antibiotic", "continent", "n_countries", "pred_pctR"]].round(3))
             dl(preds.round(4), "⬇ Download all predictions (CSV)", "blindspot_predictions.csv")
 
 # ============================================================= 5. COVERAGE
 with tabs[5]:
     st.subheader("Surveillance coverage — where are the blind spots?")
-    st.plotly_chart(viz.coverage_map(), use_container_width=True)
+    chart(viz.coverage_map(), "cov_map")
     st.info("Pale/white countries are surveillance blind spots — little or no isolate data, "
             "regardless of likely clinical burden (especially low- and middle-income countries). "
             "The SPIDAAR cohort shows >80% 3GC resistance in Sub-Saharan Africa, yet that region "
