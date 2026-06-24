@@ -291,6 +291,49 @@ def load_dream():
                             meta_cols=set(gene_cols) | {"SubType"})
 
 
+def load_spidaar():
+    """SPIDAAR patient-level RWE (Kenya/Ghana/Uganda/Malawi). Phenotype flags -> long rows.
+
+    c3r (3GC resistance) -> Ceftriaxone S/R for Gram-negatives (excl. intrinsic-AmpC
+    Enterobacter); mrsa -> Oxacillin S/R for S. aureus. mdr flag saved separately.
+    """
+    from .paths import PROCESSED_DIR
+    df = pd.read_excel(raw_path("SPIDAAR_ISOLATE"), sheet_name="data")
+    df["year"] = df["sampdat"].astype(str).str.extract(r"(\d{4})")[0]
+    pj = _map_unique(df["isolate"].astype(str), canon.canon_pathogen)
+    df["pathogen"] = pj.map(lambda t: t[0]); df["gram"] = pj.map(lambda t: t[1]); df["who"] = pj.map(lambda t: t[2])
+    df = df[df["pathogen"].notna()].copy()
+    df["isolate_id"] = "SPIDAAR:" + df["iid"].astype(str)
+
+    rows = []
+    # c3r -> Ceftriaxone (Gram-negative, exclude Enterobacter intrinsic AmpC)
+    gn = df[(df["gram"] == "negative") & (~df["pathogen"].str.startswith("Enterobacter"))]
+    c = gn[gn["c3r"].isin([0, 1])].copy()
+    c["antibiotic"] = "Ceftriaxone"; c["drug_class"] = "Cephalosporin"
+    c["sir"] = c["c3r"].map({1: "R", 0: "S"})
+    rows.append(c)
+    # mrsa -> Oxacillin (S. aureus)
+    sa = df[(df["pathogen"] == "Staphylococcus aureus") & (df["mrsa"].isin([0, 1]))].copy()
+    sa["antibiotic"] = "Oxacillin"; sa["drug_class"] = "Penicillin"
+    sa["sir"] = sa["mrsa"].map({1: "R", 0: "S"})
+    rows.append(sa)
+
+    out = pd.concat(rows, ignore_index=True)
+    out["country"] = out["ctry"]
+    out["country_iso3"] = _map_unique(out["ctry"].astype(str), canon.canon_country)
+    out["specimen"] = out["stype"]
+    out["region"] = "Africa"
+    out["age"] = pd.NA; out["age_group"] = pd.NA; out["pediatric"] = pd.NA
+    out["mic"] = pd.NA; out["mic_op"] = pd.NA
+    out["source"] = "SPIDAAR"
+    out["sir"] = out["sir"].astype("string")
+
+    # supplementary: isolate-level MDR flag (0/1; 99=unknown dropped)
+    mdr = df[df["mdr"].isin([0, 1])][["isolate_id", "pathogen", "gram", "who", "ctry", "mdr"]].copy()
+    mdr.rename(columns={"ctry": "country"}).to_parquet(PROCESSED_DIR / "spidaar_mdr.parquet")
+    return _finalize(out)
+
+
 MIC_LOADERS = [load_soar_201818, load_soar_201910, load_soar_207965,
                load_innoviva, load_sidero, load_gears, load_keystone,
-               load_gasar, load_plea_i, load_plea_ii, load_dream]
+               load_gasar, load_plea_i, load_plea_ii, load_dream, load_spidaar]
