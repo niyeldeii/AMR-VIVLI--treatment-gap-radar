@@ -1,0 +1,36 @@
+# Canonical pathogen reference.
+# key = canonical species name
+# gram = negative | positive | afb (acid-fast, TB)
+# who = WHO Bacterial Priority Pathogen List 2024 tier: critical | high | medium | "" (none)
+# aliases = alternate spellings / abbreviations (normalized lowercase)
+#
+# Note: matching also strips trailing phenotype tags (e.g. ", MSSA"/", MRSA") before lookup.
+
+Escherichia coli:           {gram: negative, who: critical, aliases: [e coli, e. coli, escherichia coli]}
+Klebsiella pneumoniae:      {gram: negative, who: critical, aliases: [k pneumoniae, k. pneumoniae, klebsiella pneumoniae]}
+Klebsiella oxytoca:         {gram: negative, who: critical, aliases: [klebsiella oxytoca]}
+Klebsiella aerogenes:       {gram: negative, who: critical, aliases: [klebsiella aerogenes, enterobacter aerogenes]}
+Acinetobacter baumannii:    {gram: negative, who: critical, aliases: [a baumannii, a. baumannii, acinetobacter baumannii, acinetobacter baumannii-calcoaceticus, acinetobacter calcoaceticus-baumannii complex]}
+Pseudomonas aeruginosa:     {gram: negative, who: high,     aliases: [p aeruginosa, p. aeruginosa, pseudomonas aeruginosa]}
+Enterobacter cloacae:       {gram: negative, who: critical, aliases: [enterobacter cloacae]}
+Serratia marcescens:        {gram: negative, who: "",       aliases: [serratia marcescens]}
+Citrobacter freundii:       {gram: negative, who: "",       aliases: [citrobacter freundii]}
+Proteus mirabilis:          {gram: negative, who: "",       aliases: [proteus mirabilis]}
+Providencia rettgeri:       {gram: negative, who: "",       aliases: [providencia rettgeri]}
+Providencia stuartii:       {gram: negative, who: "",       aliases: [providencia stuartii]}
+Haemophilus influenzae:     {gram: negative, who: medium,   aliases: [h influenzae, h. influenzae, haemophilus influenzae]}
+Neisseria gonorrhoeae:      {gram: negative, who: high,     aliases: [neisseria gonorrhoeae, n gonorrhoeae]}
+Salmonella enterica:        {gram: negative, who: high,     aliases: [salmonella enterica, salmonella spp]}
+Acinetobacter pittii:       {gram: negative, who: "",       aliases: [acinetobacter pittii]}
+Acinetobacter nosocomialis: {gram: negative, who: "",       aliases: [acinetobacter nosocomialis]}
+
+Staphylococcus aureus:      {gram: positive, who: high,     aliases: [s aureus, s. aureus, staphylococcus aureus, mssa, mrsa]}
+Staphylococcus epidermidis: {gram: positive, who: "",       aliases: [staphylococcus epidermidis]}
+Streptococcus pneumoniae:   {gram: positive, who: medium,   aliases: [s pneumoniae, s. pneumoniae, streptococcus pneumoniae]}
+Streptococcus agalactiae:   {gram: positive, who: "",       aliases: [streptococcus agalactiae]}
+Streptococcus pyogenes:     {gram: positive, who: "",       aliases: [streptococcus pyogenes]}
+Enterococcus faecalis:      {gram: positive, who: "",       aliases: [enterococcus faecalis]}
+Enterococcus faecium:       {gram: positive, who: high,     aliases: [enterococcus faecium]}
+Enterococcus durans:        {gram: positive, who: "",       aliases: [enterococcus durans]}
+
+Mycobacterium tuberculosis: {gram: afb,      who: critical, aliases: [m tuberculosis, m. tuberculosis, mycobacterium tuberculosis, mtb]}

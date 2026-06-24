@@ -1,0 +1,89 @@
+# Canonical antibiotic reference.
+# key  = canonical drug name (Title Case)
+# class= antimicrobial class (used for MDR = resistance to >=3 classes)
+# aliases = alternate spellings / dataset codes (normalized: lowercased, separators->space)
+#
+# Normalization for matching: lowercase, replace [/_-] and newlines with space, collapse spaces.
+
+Amikacin:        {class: Aminoglycoside, aliases: [ami, amk, amikacin]}
+Gentamicin:      {class: Aminoglycoside, aliases: [gm, gen, gentamicin]}
+Kanamycin:       {class: Aminoglycoside, aliases: [kan, kanamycin]}
+Tobramycin:      {class: Aminoglycoside, aliases: [tob, tobramycin]}
+
+Ampicillin:      {class: Penicillin, aliases: [amp, ampicillin]}
+Amoxicillin:     {class: Penicillin, aliases: [amx, amoxicillin, amoxycillin]}
+Penicillin:      {class: Penicillin, aliases: [pen, penicillin]}
+Oxacillin:       {class: Penicillin, aliases: [oxa, oxacillin]}
+Piperacillin:    {class: Penicillin, aliases: [pip, piperacillin]}
+
+Amoxicillin-clavulanate:   {class: Beta-lactam/inhibitor, aliases: [amc, amoxicillin clavulanate, amoxycillin clavulanate, amoxicillin clavulanate fixed at 2, amoxicillin clavulanic acid]}
+Ampicillin-sulbactam:      {class: Beta-lactam/inhibitor, aliases: [sam, ampicillin sulbactam]}
+Piperacillin-tazobactam:   {class: Beta-lactam/inhibitor, aliases: [tzp, piperacillin tazobactam]}
+Ticarcillin-clavulanate:   {class: Beta-lactam/inhibitor, aliases: [tim, ticarcillin clavulanate]}
+Cefoperazone-sulbactam:    {class: Beta-lactam/inhibitor, aliases: [cefoperazone sulbactam]}
+Ceftazidime-avibactam:     {class: Beta-lactam/inhibitor, aliases: [caz avi, ceftazidime avibactam]}
+Ceftolozane-tazobactam:    {class: Beta-lactam/inhibitor, aliases: [ceftolozane tazobactam]}
+Meropenem-vaborbactam:     {class: Beta-lactam/inhibitor, aliases: [meropenem vaborbactam, meropenem vaborbactam at 8]}
+Aztreonam-avibactam:       {class: Beta-lactam/inhibitor, aliases: [aztreonam avibactam]}
+Imipenem-relebactam:       {class: Beta-lactam/inhibitor, aliases: [imipenem relebactam]}
+Sulbactam:                 {class: Beta-lactam/inhibitor, aliases: [sulbactam, sulbactam 514 at 4 mcg ml, sulbactam 514]}
+
+Cefaclor:        {class: Cephalosporin, aliases: [cec, cefaclor]}
+Cefdinir:        {class: Cephalosporin, aliases: [cdn, din, cefdinir]}
+Cefepime:        {class: Cephalosporin, aliases: [fep, cefepime]}
+Cefixime:        {class: Cephalosporin, aliases: [fix, cefixime]}
+Cefotaxime:      {class: Cephalosporin, aliases: [ctx, cefotaxime]}
+Cefoxitin:       {class: Cephalosporin, aliases: [fox, cefoxitin]}
+Cefpodoxime:     {class: Cephalosporin, aliases: [pod, cefpodoxime]}
+Ceftaroline:     {class: Cephalosporin, aliases: [ceftaroline]}
+Ceftazidime:     {class: Cephalosporin, aliases: [caz, ceftazidime]}
+Ceftibuten:      {class: Cephalosporin, aliases: [ceftibuten]}
+Ceftriaxone:     {class: Cephalosporin, aliases: [axo, ceftriaxone]}
+Cefuroxime:      {class: Cephalosporin, aliases: [cxm, cefuroxime]}
+Cefiderocol:     {class: Siderophore-cephalosporin, aliases: [cefiderocol]}
+
+Doripenem:       {class: Carbapenem, aliases: [doripenem]}
+Ertapenem:       {class: Carbapenem, aliases: [ertapenem]}
+Imipenem:        {class: Carbapenem, aliases: [ipm, imipenem]}
+Meropenem:       {class: Carbapenem, aliases: [mem, meropenem]}
+
+Aztreonam:       {class: Monobactam, aliases: [atm, aztreonam]}
+
+Ciprofloxacin:   {class: Fluoroquinolone, aliases: [cip, ciprofloxacin]}
+Levofloxacin:    {class: Fluoroquinolone, aliases: [lev, lvx, levofloxacin]}
+Moxifloxacin:    {class: Fluoroquinolone, aliases: [mxf, moxifloxacin]}
+Gatifloxacin:    {class: Fluoroquinolone, aliases: [gatifloxacin]}
+Ofloxacin:       {class: Fluoroquinolone, aliases: [ofx, ofloxacin]}
+
+Azithromycin:    {class: Macrolide, aliases: [azm, azithromycin]}
+Clarithromycin:  {class: Macrolide, aliases: [cla, clarithromycin]}
+Erythromycin:    {class: Macrolide, aliases: [ery, erythromycin]}
+
+Clindamycin:     {class: Lincosamide, aliases: [clindamycin]}
+
+Tetracycline:    {class: Tetracycline, aliases: [tetracycline]}
+Doxycycline:     {class: Tetracycline, aliases: [doxycycline]}
+Minocycline:     {class: Tetracycline, aliases: [mi, minocycline]}
+Tigecycline:     {class: Glycylcycline, aliases: [tigecycline]}
+Omadacycline:    {class: Tetracycline, aliases: [omadacycline]}
+
+Vancomycin:      {class: Glycopeptide, aliases: [vancomycin]}
+Teicoplanin:     {class: Glycopeptide, aliases: [teicoplanin]}
+Linezolid:       {class: Oxazolidinone, aliases: [lzd, linezolid]}
+Daptomycin:      {class: Lipopeptide, aliases: [daptomycin]}
+Quinupristin-dalfopristin: {class: Streptogramin, aliases: [quinupristin dalfopristin]}
+
+Colistin:        {class: Polymyxin, aliases: [cl, colistin]}
+Polymyxin B:     {class: Polymyxin, aliases: [polymyxin b, polymyxin b mic, polymyxin b mic mcg ml]}
+
+Chloramphenicol: {class: Phenicol, aliases: [c, chloramphenicol]}
+Trimethoprim-sulfamethoxazole: {class: Folate-inhibitor, aliases: [sxt, trimethoprim sulfa, trimethoprim sulfamethoxazole]}
+Metronidazole:   {class: Nitroimidazole, aliases: [metronidazole]}
+
+# --- Anti-tuberculosis (DREAM) ; kept in their own classes, MDR handled by TB logic ---
+Isoniazid:       {class: Anti-TB, aliases: [inh, isoniazid]}
+Rifampicin:      {class: Anti-TB, aliases: [rmp, rif, rifampin, rifampicin]}
+Ethambutol:      {class: Anti-TB, aliases: [emb, ethambutol]}
+Capreomycin:     {class: Anti-TB, aliases: [cap, capreomycin]}
+Bedaquiline:     {class: Anti-TB, aliases: [bdq, bdq broth, bdq mgit, bedaquiline]}
+Clofazimine:     {class: Anti-TB, aliases: [cfz, clofazimine]}

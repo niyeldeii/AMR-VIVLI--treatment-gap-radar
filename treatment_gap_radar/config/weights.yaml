@@ -1,0 +1,19 @@
+# Weights for combining normalized (0-1) indicators. Defaults = equal.
+# Sensitivity analysis in the notebook re-runs with alternates.
+rni:
+  prevalence:   1.0   # overall %R
+  mic_drift:    1.0   # worsening trend of %R over time
+  mdr:          1.0   # % isolates resistant to >=3 classes
+  geo_spread:   1.0   # share of countries with elevated resistance
+  scarcity:     1.0   # share of drug classes compromised
+  pediatric:    1.0   # %R among pediatric isolates
+
+rai:
+  investment:   1.0   # total USD
+  projects:     1.0   # project count
+  pipeline:     1.0   # # pipeline products
+
+# thresholds
+min_tested_combo: 30     # min isolates for a (pathogen,drug,country) %R to count
+country_resistant_threshold: 0.25   # %R above which a country counts as "elevated" for geo_spread
+class_compromised_threshold: 0.10   # class %R above which it's "compromised" for scarcity
