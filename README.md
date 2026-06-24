@@ -90,7 +90,7 @@ Gram-negative antibiotic genuinely treats *Providencia* even when that genus is 
 
 ## 5. Statistical rigor (so it's defensible, not arbitrary)
 
-`src/models.py`, precomputed by `src/build_rigor.py`:
+`src/models.py`, precomputed by the pipeline (`src/pipeline.py`):
 
 - **Bootstrap 95% CIs** for resistance prevalence (e.g. *A. baumannii* meropenem 60.9%, CI 60.4–61.3).
 - **Logistic time-trend models** — odds ratio of resistance per year + 95% CI + p-value
@@ -148,9 +148,10 @@ pip install "numpy" "pandas==2.2.2" openpyxl xlrd matplotlib seaborn plotly stre
 
 # 2. Place the raw Vivli datasets in the parent challenge folder (see src/paths.py). NOT in this repo.
 
-# 3. Build everything (from the treatment_gap_radar/ folder)
-python -m src.pipeline        # harmonize -> indicators -> RNI/RAI -> gap
-python -m src.build_rigor     # bootstrap CIs, trends, PCA, sensitivity, blind-spot ML
+# 3. Build everything with ONE command (from the treatment_gap_radar/ folder)
+python -m src.pipeline                 # harmonize -> indicators -> RNI/RAI/gap -> rigor + ML
+#   python -m src.pipeline --no-harmonize   # reuse existing isolates_long.parquet
+#   python -m src.pipeline --fast           # skip the slower blind-spot ML model
 
 # 4. Explore
 streamlit run app/dashboard.py
@@ -174,7 +175,7 @@ treatment_gap_radar/
     models.py        trends, PCA weights, sensitivity, bootstrap CIs
     geo.py / predict.py   blind-spot prediction model
     viz.py           shared Plotly figures
-    pipeline.py / build_rigor.py   one-command builds
+    pipeline.py      single end-to-end build (harmonize -> analysis -> rigor + ML)
   app/dashboard.py   Streamlit app
   notebooks/         analysis notebook + builder
   data_processed/    aggregate results (parquet) — raw/isolate-level data excluded

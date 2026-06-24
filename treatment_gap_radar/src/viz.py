@@ -38,6 +38,22 @@ def gap_quadrant(gap=None):
     return fig
 
 
+# ------------------------------------------------- 1b. per-pathogen indicator radar
+def indicator_radar(pathogen, rni=None):
+    rni = rni if rni is not None else load("rni.parquet")
+    cols = ["prevalence_n", "mic_drift_n", "mdr_n", "geo_spread_n", "scarcity_n", "pediatric_n"]
+    nice = ["Prevalence", "MIC drift", "MDR", "Geo spread", "Scarcity", "Pediatric"]
+    if pathogen not in rni.index:
+        return go.Figure().update_layout(title=f"{pathogen}: not in ranked index")
+    vals = [float(rni.loc[pathogen, c]) for c in cols]
+    fig = go.Figure(go.Scatterpolar(r=vals + [vals[0]], theta=nice + [nice[0]],
+                                     fill="toself", line_color="#d62728"))
+    fig.update_layout(title=f"Resistance-need profile — {pathogen}",
+                      polar=dict(radialaxis=dict(range=[0, 1], showticklabels=True)),
+                      height=380, showlegend=False)
+    return fig
+
+
 # --------------------------------------------------------- 2. indicator heatmap
 def indicator_heatmap(rni=None):
     rni = rni if rni is not None else load("rni.parquet")

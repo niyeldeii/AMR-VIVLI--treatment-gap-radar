@@ -1,7 +1,7 @@
 """Treatment Gap Radar — interactive dashboard.
 
 Run:  streamlit run treatment_gap_radar/app/dashboard.py
-Reads the precomputed parquet outputs (build them first with src.pipeline).
+Reads precomputed parquet outputs (build them with `python -m src.pipeline`).
 """
 import sys
 from pathlib import Path
@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # treatment_ga
 from src import viz                                               # noqa: E402
 from src.paths import PROCESSED_DIR                               # noqa: E402
 
-st.set_page_config(page_title="Treatment Gap Radar", layout="wide")
+st.set_page_config(page_title="Treatment Gap Radar", layout="wide", page_icon="🛰️")
 
 
 @st.cache_data
@@ -21,113 +21,246 @@ def load(name):
     return pd.read_parquet(PROCESSED_DIR / name)
 
 
-if not (PROCESSED_DIR / "gap.parquet").exists():
-    st.error("Outputs not found. Run:  python -m src.pipeline   (from the treatment_gap_radar folder)")
+def have(name):
+    return (PROCESSED_DIR / name).exists()
+
+
+def dl(df, label, fname):
+    st.download_button(label, df.to_csv().encode(), file_name=fname, mime="text/csv")
+
+
+if not have("gap.parquet"):
+    st.error("Outputs not found. Run `python -m src.pipeline` from the treatment_gap_radar folder.")
     st.stop()
 
 gap = load("gap.parquet")
 rni = load("rni.parquet")
 combo = load("combo_resistance.parquet")
+rs = load("rigor_summary.parquet").iloc[0] if have("rigor_summary.parquet") else None
+
+# ---------------------------------------------------------------------- sidebar
+with st.sidebar:
+    st.header("🛰️ Treatment Gap Radar")
+    st.caption("Vivli AMR Surveillance Open Data Re-use Data Challenge · AMR ID 00013367")
+    st.metric("Pathogens scored", len(gap))
+    st.metric("Priority treatment gaps", int(gap["quadrant"].str.startswith("PRIORITY").sum()))
+    st.metric("Isolates analyzed", f"{int(gap['n_isolates'].sum()):,}")
+    if rs is not None and "cv_R2_unseen_countries" in rs:
+        st.metric("Blind-spot model R² (unseen countries)", f"{rs['cv_R2_unseen_countries']:.2f}")
+    st.markdown("---")
+    st.markdown("**Data:** 13 Vivli AMR datasets + Global AMR R&D Hub ($18.9 B, 19,023 projects).")
+    st.markdown("[GitHub repository](https://github.com/niyeldeii/AMR-VIVLI--treatment-gap-radar)")
 
 st.title("🛰️ Treatment Gap Radar")
-st.caption("Antimicrobial Resistance Need vs Global R&D Attention — Vivli AMR Data Challenge (AMR ID 00013367)")
+st.markdown("#### Does global antimicrobial R&D go where resistance is actually getting worse?")
 
-tab_gap, tab_path, tab_trend, tab_blind, tab_cov, tab_about = st.tabs(
-    ["Gap Radar", "Pathogen explorer", "Trends & rigor", "Blind-spot prediction",
-     "Surveillance coverage", "About / data"])
+tabs = st.tabs(["Overview", "Gap Radar", "Pathogen explorer", "Trends & rigor",
+                "Blind-spot prediction", "Surveillance coverage", "Methodology",
+                "Findings & implications", "About / data"])
 
-with tab_gap:
-    c1, c2, c3 = st.columns(3)
-    n_gap = (gap["quadrant"].str.startswith("PRIORITY")).sum()
-    c1.metric("Pathogens analyzed", len(gap))
-    c2.metric("Priority treatment gaps", int(n_gap))
-    c3.metric("Total isolates", f"{int(gap['n_isolates'].sum()):,}")
+# ============================================================= 0. OVERVIEW
+with tabs[0]:
+    st.markdown("""
+The **Treatment Gap Radar** scores every pathogen on two axes and overlays them:
+a **Resistance Need Index** (how bad resistance is getting, from six surveillance indicators) and
+an **R&D Attention Index** (investment + pipeline from the Global AMR R&D Hub). The gap between them
+surfaces where the world is *under-developing* therapies relative to need.
+""")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Surveillance datasets", "13")
+    c2.metric("Isolate–antibiotic results", "17.9 M")
+    c3.metric("R&D tracked", "$18.9 B")
+    if rs is not None:
+        c4.metric("Indicators on 1 PCA axis", f"{rs['pc1_var']*100:.0f}%")
     st.plotly_chart(viz.gap_quadrant(gap), use_container_width=True)
-    st.subheader("Priority gaps (high resistance need, low R&D attention)")
-    pg = gap[gap["quadrant"].str.startswith("PRIORITY")].sort_values("gap_score", ascending=False)
-    st.dataframe(pg[["who", "n_isolates", "RNI", "RAI", "gap_score"]].round(3),
-                 use_container_width=True)
-    with st.expander("Indicator heatmap (all pathogens)"):
+    st.success("**Headline:** the clearest gaps are Gram-positive (VRE / *E. faecium*, "
+               "*S. epidermidis*); broad-spectrum Gram-negative R&D already covers the "
+               "Enterobacterales; the biggest blind spot is geographic (LMIC surveillance).")
+
+# ============================================================= 1. GAP RADAR
+with tabs[1]:
+    st.subheader("Resistance Need vs R&D Attention")
+    st.plotly_chart(viz.gap_quadrant(gap), use_container_width=True)
+    colA, colB = st.columns([2, 1])
+    with colA:
+        st.subheader("Priority gaps (high need, low attention)")
+        pg = gap[gap["quadrant"].str.startswith("PRIORITY")].sort_values("gap_score", ascending=False)
+        st.dataframe(pg[["who", "n_isolates", "RNI", "RAI", "gap_score"]].round(3),
+                     use_container_width=True)
+        dl(gap.round(4), "⬇ Download full gap table (CSV)", "treatment_gap.csv")
+    with colB:
+        st.subheader("Quadrant counts")
+        st.dataframe(gap["quadrant"].str.split(" \\(").str[0].value_counts().rename("pathogens"))
+    with st.expander("Indicator heatmap — all pathogens"):
         st.plotly_chart(viz.indicator_heatmap(rni), use_container_width=True)
 
-with tab_path:
+# ============================================================= 2. PATHOGEN EXPLORER
+with tabs[2]:
     pathogens = sorted(combo["pathogen"].dropna().unique())
-    default = pathogens.index("Acinetobacter baumannii") if "Acinetobacter baumannii" in pathogens else 0
-    patho = st.selectbox("Pathogen", pathogens, index=default)
+    dflt = pathogens.index("Acinetobacter baumannii") if "Acinetobacter baumannii" in pathogens else 0
+    patho = st.selectbox("Pathogen", pathogens, index=dflt)
     drugs = sorted(combo[combo["pathogen"] == patho]["antibiotic"].dropna().unique())
     drug = st.selectbox("Antibiotic", drugs,
                         index=(drugs.index("Meropenem") if "Meropenem" in drugs else 0))
-    col1, col2 = st.columns(2)
-    with col1:
-        st.plotly_chart(viz.resistance_choropleth(patho, drug), use_container_width=True)
-    with col2:
-        st.plotly_chart(viz.resistance_trend(patho, drug), use_container_width=True)
+
     if patho in rni.index:
         r = rni.loc[patho]
-        st.write(f"**{patho}** — RNI {r['RNI']:.2f}  ·  WHO tier: {r.get('who') or '—'}  "
-                 f"·  isolates {int(r['n_isolates']):,}")
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Resistance Need Index", f"{r['RNI']:.2f}")
+        if patho in gap.index:
+            m2.metric("R&D Attention Index", f"{gap.loc[patho, 'RAI']:.2f}")
+            m3.metric("Gap score", f"{gap.loc[patho, 'gap_score']:+.2f}")
+        m4.metric("Isolates", f"{int(r['n_isolates']):,}")
+        st.caption(f"WHO priority tier: **{r.get('who') or '—'}**")
 
-with tab_trend:
+    c1, c2 = st.columns(2)
+    with c1:
+        if patho in rni.index:
+            st.plotly_chart(viz.indicator_radar(patho, rni), use_container_width=True)
+        st.plotly_chart(viz.resistance_choropleth(patho, drug), use_container_width=True)
+    with c2:
+        st.plotly_chart(viz.resistance_trend(patho, drug), use_container_width=True)
+        if have("ci_keypairs.parquet"):
+            ci = load("ci_keypairs.parquet")
+            row = ci[(ci.pathogen == patho) & (ci.drug == drug)]
+            if len(row):
+                rr = row.iloc[0]
+                st.info(f"**% resistant: {rr['pctR']:.1f}%** (95% CI {rr['lo']:.1f}–{rr['hi']:.1f}, "
+                        f"n={int(rr['n']):,})")
+        if have("trend_models.parquet"):
+            tm = load("trend_models.parquet")
+            row = tm[(tm.pathogen == patho) & (tm.drug == drug)]
+            if len(row):
+                t = row.iloc[0]
+                arrow = "rising 📈" if t["OR_per_year"] > 1 else "falling 📉"
+                st.warning(f"**Trend: {arrow}** — OR {t['OR_per_year']:.3f}/yr "
+                           f"(95% CI {t['ci_lo']:.3f}–{t['ci_hi']:.3f}, p={t['p_value']:.1e})")
+
+# ============================================================= 3. TRENDS & RIGOR
+with tabs[3]:
     st.subheader("Resistance trends over time")
-    st.caption("Logistic regression of resistance on year — odds ratio per year with 95% CIs. "
-               "OR > 1 means resistance is rising.")
-    if (PROCESSED_DIR / "trend_models.parquet").exists():
+    st.caption("Logistic regression of resistance on year — odds ratio per year (95% CI). >1 = rising.")
+    if have("trend_models.parquet"):
         st.plotly_chart(viz.trend_forest(), use_container_width=True)
         st.dataframe(load("trend_models.parquet").round(4), use_container_width=True)
     st.divider()
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("Methodology is robust")
-        if (PROCESSED_DIR / "rigor_summary.parquet").exists():
-            rs = load("rigor_summary.parquet").iloc[0]
-            st.metric("PCA — variance on 1st component", f"{rs['pc1_var']*100:.0f}%",
-                      help="Indicators load on one dominant 'need' axis, so equal weighting is justified.")
-            st.write("**Data-driven (PCA) weights vs equal weights:**")
+        st.subheader("Weighting is data-justified")
+        if rs is not None:
+            st.metric("Variance on 1st principal component", f"{rs['pc1_var']*100:.0f}%",
+                      help="High value = the six indicators measure one underlying 'need' axis, "
+                           "so equal weighting is justified.")
             wts = {k.replace("w_", ""): rs[k] for k in rs.index if k.startswith("w_")}
-            st.dataframe(pd.Series(wts, name="PCA weight").round(3))
+            st.dataframe(pd.Series(wts, name="PCA-derived weight").round(3))
     with c2:
         st.subheader("Rankings are weight-insensitive")
-        if (PROCESSED_DIR / "sensitivity.parquet").exists():
-            st.caption("Spearman correlation of the pathogen ranking under different weightings "
-                       "vs the equal-weight default. ~1.0 = conclusions don't depend on weights.")
+        if have("sensitivity.parquet"):
+            st.caption("Spearman correlation of the pathogen ranking vs equal weights (≈1 = robust).")
             st.dataframe(load("sensitivity.parquet"), use_container_width=True)
+    if have("ci_keypairs.parquet"):
+        with st.expander("Bootstrap 95% confidence intervals (key pairs)"):
+            st.dataframe(load("ci_keypairs.parquet").round(2), use_container_width=True)
 
-with tab_blind:
+# ============================================================= 4. BLIND-SPOT PREDICTION
+with tabs[4]:
     st.subheader("Predicting resistance where there is no surveillance")
-    if (PROCESSED_DIR / "rigor_summary.parquet").exists():
-        rs = load("rigor_summary.parquet").iloc[0]
+    st.markdown("A gradient-boosted model predicts resistance from *generalizable* features "
+                "(pathogen, drug, Gram, continent, income tier, year) — **not** country identity — "
+                "validated by holding out whole countries.")
+    if rs is not None and "cv_R2_unseen_countries" in rs:
         m1, m2, m3 = st.columns(3)
-        m1.metric("Model R² on unseen countries", f"{rs['cv_R2_unseen_countries']:.2f}",
-                  help="Held-out-country cross-validation: how well resistance is predicted "
-                       "for countries the model never saw.")
-        m2.metric("Mean abs. error", f"{rs['cv_weighted_MAE']*100:.1f}%")
+        m1.metric("R² on unseen countries", f"{rs['cv_R2_unseen_countries']:.2f}")
+        m2.metric("Mean absolute error", f"{rs['cv_weighted_MAE']*100:.1f}%")
         m3.metric("vs naive baseline", f"{rs['baseline_MAE_global_mean']*100:.1f}%")
-    if (PROCESSED_DIR / "blindspot_predictions.parquet").exists():
+    if have("blindspot_predictions.parquet"):
         preds = load("blindspot_predictions.parquet")
         paths = sorted(preds["pathogen"].unique())
-        dflt = paths.index("Klebsiella pneumoniae") if "Klebsiella pneumoniae" in paths else 0
-        bp = st.selectbox("Pathogen", paths, index=dflt, key="bp_path")
-        bdrugs = sorted(preds[preds["pathogen"] == bp]["antibiotic"].unique())
+        d0 = paths.index("Klebsiella pneumoniae") if "Klebsiella pneumoniae" in paths else 0
+        bp = st.selectbox("Pathogen", paths, index=d0, key="bp_path")
+        bdrugs = sorted(preds[preds.pathogen == bp]["antibiotic"].unique())
         bd = st.selectbox("Antibiotic", bdrugs, key="bp_drug")
         st.plotly_chart(viz.blindspot_continent(bp, bd), use_container_width=True)
-        st.caption("Red bars = regions with thin/absent surveillance (≤2 countries reporting) — "
-                   "the model's best estimate of resistance there.")
+        st.caption("Red bars = thin/absent surveillance (≤2 countries) — the model's best estimate.")
+        with st.expander("All predicted blind spots (thin surveillance, highest predicted resistance)"):
+            thin = preds[preds["thin_surveillance"]].sort_values("pred_pctR", ascending=False)
+            st.dataframe(thin[["pathogen", "antibiotic", "continent", "n_countries", "pred_pctR"]]
+                         .round(3), use_container_width=True)
+            dl(preds.round(4), "⬇ Download all predictions (CSV)", "blindspot_predictions.csv")
 
-with tab_cov:
+# ============================================================= 5. COVERAGE
+with tabs[5]:
+    st.subheader("Surveillance coverage — where are the blind spots?")
     st.plotly_chart(viz.coverage_map(), use_container_width=True)
-    st.info("White / pale countries are surveillance blind spots — little or no isolate data, "
-            "regardless of likely clinical burden (esp. low- and middle-income countries).")
+    st.info("Pale/white countries are surveillance blind spots — little or no isolate data, "
+            "regardless of likely clinical burden (especially low- and middle-income countries). "
+            "The SPIDAAR cohort shows >80% 3GC resistance in Sub-Saharan Africa, yet that region "
+            "is barely represented in the global surveillance datasets.")
 
-with tab_about:
+# ============================================================= 6. METHODOLOGY
+with tabs[6]:
     st.markdown("""
-**Resistance Need Index (RNI)** combines six indicators (prevalence, MIC drift, MDR frequency,
-geographic spread, therapeutic scarcity, pediatric involvement) from the Vivli surveillance data.
-**R&D Attention Index (RAI)** is derived from the Global AMR R&D Hub export (investment, projects,
-pipeline products). The gap = RNI − RAI.
+### How it works
 
-*Caveat:* R&D records are tagged coarsely (mostly Gram class) and by funder geography, so the
-need-vs-attention comparison is at pathogen level and is an approximate attribution.
+**1. Harmonization.** 13 datasets with different schemas, drug names, date formats and headers are
+normalized into one long table (`isolate × antibiotic × susceptibility`, 17.9 M rows) with canonical
+pathogen, antibiotic + drug class, and ISO-3 country.
 
-> Data from GSK, Innoviva Specialty Therapeutics, Johnson & Johnson, Paratek, Pfizer, Shionogi,
-> Venatorx, Venus Remedies Limited, obtained through https://amr.vivli.org
+**2. Susceptibility (S/I/R).** ATLAS ships native interpretation; the 12 MIC-only datasets are
+interpreted with a curated **CLSI M100** breakpoint table (8 organism groups) plus **tuberculosis
+critical concentrations**. Validated by cross-dataset agreement (e.g. *A. baumannii* meropenem 60.9 %
+in ATLAS vs 62.3 % in Innoviva).
+
+**3. Resistance Need Index (RNI).** Six indicators per pathogen — prevalence, time trend (MIC drift),
+multidrug-resistance frequency, geographic spread, therapeutic scarcity, pediatric involvement —
+each normalized 0–1 and combined. Equal weights are **validated by PCA** (PC1 ≈ 72 % variance).
+
+**4. R&D Attention Index (RAI).** R&D Hub records resolve mostly to Gram class, so each pathogen
+inherits its Gram-class broad-spectrum pool (GN $4.9 B · GP $3.0 B · TB $4.6 B) **plus** a bonus for
+work that names it. This avoids falsely flagging broadly-covered species (e.g. *Providencia*).
+
+**5. Gap.** RNI − RAI → four quadrants; the priority quadrant is high need / low attention.
+
+**6. Rigor & ML.** Bootstrap 95 % CIs; logistic resistance-vs-year trend models; weight-sensitivity
+analysis; and a gradient-boosted blind-spot model validated on held-out countries (R² ≈ 0.73).
+""")
+
+# ============================================================= 7. FINDINGS
+with tabs[7]:
+    st.markdown("""
+### Key findings
+
+- 🔴 **The clearest treatment gaps are Gram-positive:** *Enterococcus faecium* (VRE) and
+  *Staphylococcus epidermidis* — high resistance need, little targeted R&D.
+- 🟢 **Broad-spectrum Gram-negative R&D already covers the Enterobacterales** (*Providencia*,
+  *Proteus*, *Serratia*, *Citrobacter*). A name-only attribution would falsely flag these.
+- 🟢 **WHO-critical *A. baumannii* / *K. pneumoniae* and TB are well-served** (high need, high attention).
+- 📈 **Resistance is actively worsening** for critical Gram-negatives (significant positive trends).
+- 🌍 **The biggest blind spot is geographic.** Sub-Saharan Africa is barely surveilled, yet SPIDAAR
+  shows **82 % (*E. coli*) and 90 % (*K. pneumoniae*) ceftriaxone resistance** — high burden, low
+  visibility.
+
+### Stewardship & policy implications
+1. **Targeted R&D** for the Gram-positive gaps (VRE).
+2. **Sustained investment** in the well-served critical Gram-negatives, where resistance is still climbing.
+3. **Expand LMIC surveillance**, where the model flags the highest *unmeasured* resistance.
+""")
+
+# ============================================================= 8. ABOUT
+with tabs[8]:
+    st.markdown("""
+### Data governance
+Raw Vivli data is **restricted (Data Use Agreement)** and is **not** published — only aggregate
+results (minimum cell count **n ≥ 30**). Isolate-level data stays local.
+
+### Limitations
+- Only ATLAS provides native S/I/R; others use a curated, simplified CLSI/TB breakpoint table.
+- R&D Hub tags are mostly Gram-class + funder geography → attention attributed at Gram-class level.
+- Continents / income tiers in the prediction model are coarse, documented approximations.
+- Surveillance over-represents high-income hospital settings.
+
+### Acknowledgement
+> This publication or presentation is based on research using data from GSK, Innoviva Specialty
+> Therapeutics, Johnson & Johnson, Paratek, Pfizer, Shionogi, Venatorx, Venus Remedies Limited,
+> obtained through https://amr.vivli.org
 """)
