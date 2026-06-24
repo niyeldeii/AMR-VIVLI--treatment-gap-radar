@@ -12,7 +12,7 @@ import sys
 
 import pandas as pd
 
-from . import harmonize, indicators, gap, models, predict
+from . import harmonize, indicators, gap, models, predict, rai, forecast, validate
 from .paths import PROCESSED_DIR
 
 # pathogen-drug pairs used for trend models + bootstrap CIs
@@ -36,6 +36,9 @@ def _rigor(with_ml=True):
                  for p, d in KEY_PAIRS]).to_parquet(PROCESSED_DIR / "ci_keypairs.parquet")
     models.sensitivity().to_parquet(PROCESSED_DIR / "sensitivity.parquet")
     pca = models.pca_weights()
+    rai.attribution_robustness()                 # gap stable across R&D attribution schemes
+    forecast.forecast_table(KEY_PAIRS)           # early-warning: project trajectories to threshold
+    validate.validate()                          # external benchmark vs WHO GLASS
     metrics = {}
     if with_ml:
         metrics = predict.evaluate()

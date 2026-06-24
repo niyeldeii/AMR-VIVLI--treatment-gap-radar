@@ -136,6 +136,29 @@ def trend_forest(trends=None):
     return fig
 
 
+# --------------------------------------------------------- 6b. resistance forecast
+def forecast_plot(pathogen, drug, threshold=0.5, curves=None):
+    """Plot observed + projected %R from the precomputed forecast_curves.parquet."""
+    curves = curves if curves is not None else load("forecast_curves.parquet")
+    c = curves[(curves["pathogen"] == pathogen) & (curves["drug"] == drug)]
+    obs = c[c["kind"] == "observed"]
+    fit = c[c["kind"] == "projected"]
+    if obs.empty:
+        return go.Figure().update_layout(title=f"No forecast for {pathogen} — {drug}")
+    last = int(obs["year"].max())
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=fit["year"], y=fit["pctR"] * 100, mode="lines",
+                             name="logistic projection", line=dict(color="#d62728", dash="dash")))
+    fig.add_trace(go.Scatter(x=obs["year"], y=obs["pctR"] * 100, mode="markers",
+                             name="observed %R", marker=dict(size=7, color="#1f77b4")))
+    fig.add_hline(y=threshold * 100, line_dash="dot", line_color="grey",
+                  annotation_text=f"{int(threshold*100)}% threshold")
+    fig.add_vline(x=last, line_dash="dot", line_color="lightgrey")
+    fig.update_layout(title=f"{pathogen} — {drug}: resistance trajectory & projection to 2035",
+                      xaxis_title="Year", yaxis_title="% resistant", yaxis_range=[0, 100], height=420)
+    return fig
+
+
 # --------------------------------------------- 7. blind-spot predictions by continent
 def blindspot_continent(pathogen, drug, preds=None):
     preds = preds if preds is not None else load("blindspot_predictions.parquet")

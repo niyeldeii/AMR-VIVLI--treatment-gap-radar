@@ -63,6 +63,17 @@ features (pathogen, drug, drug class, Gram, continent, income tier, year) — de
 country identity — validated by holding out entire countries (GroupKFold), so its accuracy on unseen
 countries measures its ability to estimate resistance where surveillance is absent.
 
+**Forecasting / early warning.** For each pathogen–drug pair we project the logistic resistance–year
+fit forward and solve for the year %R crosses 50%, propagating the slope's 95% CI into a CI on that
+crossing year.
+
+**R&D attribution robustness.** Because R&D attribution is the framework's most contestable step, we
+recompute the priority gaps under three schemes — species-named only, Gram-class only, and class +
+named — and report rank stability.
+
+**External validation.** We compare our resistance estimates to published WHO GLASS 2022 global
+figures.
+
 ## 4. Results
 
 - **Validity.** Independent datasets reproduce ATLAS: *A. baumannii* meropenem resistance 60.9%
@@ -82,6 +93,15 @@ countries measures its ability to estimate resistance where surveillance is abse
   (weighted MAE 8.1% vs 18.4% for a global-mean baseline). Sub-Saharan Africa is barely surveilled,
   yet SPIDAAR shows 82% (*E. coli*) and 90% (*K. pneumoniae*) ceftriaxone resistance, and the model
   predicts high resistance across under-surveilled regions.
+- **Early warning.** *Klebsiella pneumoniae* carbapenem (meropenem) resistance is projected to cross
+  50% by ≈2036 (95% CI 2035–2038), rising from ~21% today; *A. baumannii* is already above 50% and
+  projected at ~86% by 2035. Declining pathogens (MRSA, VRE, pneumococcal penicillin) show no crossing.
+- **The gap is robust to R&D attribution.** Under both defensible attribution schemes (class, class +
+  named) the priority gaps are identical (*E. faecium*, TB, *S. epidermidis*; Spearman 1.0/0.87);
+  only naive name-only attribution differs (0.33) and is rejected.
+- **External validation.** MRSA matches GLASS almost exactly (36.6% vs 35%). Our 3GC estimates sit
+  below GLASS medians (ATLAS high-income sampling bias) while the Africa subset brackets the high
+  end — corroborating both our pipeline and the blind-spot argument.
 
 ## 5. Stewardship and policy implications
 

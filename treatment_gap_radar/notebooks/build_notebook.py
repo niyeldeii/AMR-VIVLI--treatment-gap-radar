@@ -147,7 +147,32 @@ print(f"Naive baseline (global mean) MAE      : {rs['baseline_MAE_global_mean']*
 """)
 code("viz.blindspot_continent('Klebsiella pneumoniae', 'Meropenem')")
 
-md("""## 9 · Key findings
+md("""## 9 · Early-warning forecasting
+Projecting each *rising* pathogen–drug resistance trajectory forward (logistic) and estimating the
+year it is expected to cross 50% resistance, with a 95% CI on that crossing year.""")
+code("""
+ft = pd.read_parquet(PROCESSED_DIR / "forecasts.parquet")
+ft[["pathogen", "drug", "pctR_last", "OR_per_year", "pctR_2030", "pctR_2035",
+    "cross50_year", "cross50_lo", "cross50_hi"]]
+""")
+code("viz.forecast_plot('Klebsiella pneumoniae', 'Meropenem')")
+
+md("""## 10 · R&D attribution robustness
+Is the gap headline an artefact of how we attribute R&D? We recompute the priority gaps under three
+attribution schemes. The class-aware schemes agree; only naive *name-only* attribution differs — and
+we reject it because broad-spectrum R&D demonstrably covers species it never names.""")
+code("pd.read_parquet(PROCESSED_DIR / 'rai_attribution.parquet')")
+
+md("""## 11 · External validation vs WHO GLASS 2022
+Our estimates vs published WHO GLASS global figures. MRSA matches almost exactly; our 3GC estimates
+sit below GLASS medians (ATLAS high-income sampling bias), and the Sub-Saharan-Africa subset brackets
+the high end — itself evidence for the surveillance blind-spot argument.""")
+code("""
+pd.read_parquet(PROCESSED_DIR / "glass_validation.parquet")[
+    ["pathogen", "drug", "our_pctR", "glass_pctR", "africa_subset_pctR", "delta_vs_glass"]]
+""")
+
+md("""## 12 · Key findings
 
 - **The clearest treatment gaps are Gram-positive:** ***Enterococcus faecium* (VRE)** — high
   resistance need, little targeted R&D — and ***Staphylococcus epidermidis***. These are genuine

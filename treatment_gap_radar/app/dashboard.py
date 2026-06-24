@@ -146,6 +146,11 @@ with tabs[2]:
                 arrow = "rising 📈" if t["OR_per_year"] > 1 else "falling 📉"
                 st.warning(f"**Trend: {arrow}** — OR {t['OR_per_year']:.3f}/yr "
                            f"(95% CI {t['ci_lo']:.3f}–{t['ci_hi']:.3f}, p={t['p_value']:.1e})")
+    if have("forecast_curves.parquet"):
+        fc = load("forecast_curves.parquet")
+        if bool(((fc["pathogen"] == patho) & (fc["drug"] == drug)).any()):
+            st.markdown("**Early-warning forecast** — observed trajectory + logistic projection to 2035.")
+            chart(viz.forecast_plot(patho, drug), "pe_forecast")
 
 # ============================================================= 3. TRENDS & RIGOR
 with tabs[3]:
@@ -154,6 +159,14 @@ with tabs[3]:
     if have("trend_models.parquet"):
         chart(viz.trend_forest(), "tr_forest")
         table(load("trend_models.parquet").round(4))
+    if have("forecasts.parquet"):
+        st.subheader("Early-warning forecast")
+        st.caption("Projected %R and the year each *rising* pathogen–drug pair is expected to cross "
+                   "50% resistance (logistic projection, 95% CI on the crossing year).")
+        ft = load("forecasts.parquet")
+        cols = [c for c in ["pathogen", "drug", "pctR_last", "OR_per_year", "pctR_2030",
+                            "pctR_2035", "cross50_year", "cross50_lo", "cross50_hi"] if c in ft.columns]
+        table(ft[cols])
     st.divider()
     c1, c2 = st.columns(2)
     with c1:
@@ -172,6 +185,18 @@ with tabs[3]:
     if have("ci_keypairs.parquet"):
         with st.expander("Bootstrap 95% confidence intervals (key pairs)"):
             table(load("ci_keypairs.parquet").round(2))
+    if have("rai_attribution.parquet"):
+        with st.expander("R&D attribution robustness — the gap is stable across schemes"):
+            st.caption("Priority gaps under three R&D-attribution schemes. The class-aware schemes "
+                       "agree (Spearman ≈ 1); only naive *name-only* attribution differs — and we "
+                       "reject it because broad-spectrum R&D demonstrably covers unnamed species.")
+            table(load("rai_attribution.parquet"))
+    if have("glass_validation.parquet"):
+        with st.expander("External validation vs WHO GLASS 2022"):
+            table(load("glass_validation.parquet"))
+            st.caption("MRSA matches GLASS almost exactly. Our 3GC estimates sit below GLASS medians "
+                       "(ATLAS high-income sampling bias); the Sub-Saharan-Africa subset brackets the "
+                       "high end — consistent with the surveillance blind-spot argument.")
 
 # ============================================================= 4. BLIND-SPOT PREDICTION
 with tabs[4]:

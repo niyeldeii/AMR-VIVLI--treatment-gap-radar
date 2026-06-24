@@ -92,7 +92,9 @@ def load_projects():
     return df
 
 
-def compute_rai(weights=None, save=True):
+def compute_rai(weights=None, save=True, scheme="both"):
+    """scheme: 'both' (Gram-class pool + species-named bonus, default), 'class' (Gram-class
+    pool only), or 'named' (species-named projects only) -- used for attribution robustness."""
     df = load_projects()
     df = df[df["end_year"].fillna(9999) >= MIN_END_YEAR]      # modern era
     w = weights or _weights()
@@ -114,14 +116,16 @@ def compute_rai(weights=None, save=True):
         rgx = re.compile("|".join(pats))
         specific = df["text"].str.contains(rgx, regex=True, na=False)
         sp = df[specific]
-        # species attention = its Gram-class broad-spectrum pool + a bonus for work naming it
-        rows.append({
-            "pathogen": patho, "gram": g,
-            "projects": gt["projects"] + float(sp["w"].sum()),
-            "investment": gt["investment"] + float((sp["usd"] * sp["w"]).sum()),
-            "pipeline": gt["pipeline"] + int(sp.loc[sp["Product Name"].notna(), "Product Name"].nunique()),
-            "named_projects": int(specific.sum()),                    # transparency: species-named only
-        })
+        sp_proj, sp_inv = float(sp["w"].sum()), float((sp["usd"] * sp["w"]).sum())
+        sp_pipe = int(sp.loc[sp["Product Name"].notna(), "Product Name"].nunique())
+        if scheme == "named":          # only work that names the species
+            proj, inv, pipe = sp_proj, sp_inv, sp_pipe
+        elif scheme == "class":        # only the Gram-class broad-spectrum pool
+            proj, inv, pipe = gt["projects"], gt["investment"], gt["pipeline"]
+        else:                          # 'both' = class pool + species-named bonus (default)
+            proj, inv, pipe = gt["projects"] + sp_proj, gt["investment"] + sp_inv, gt["pipeline"] + sp_pipe
+        rows.append({"pathogen": patho, "gram": g, "projects": proj, "investment": inv,
+                     "pipeline": pipe, "named_projects": int(specific.sum())})
     rai = pd.DataFrame(rows).set_index("pathogen")
 
     comp = pd.DataFrame(index=rai.index)
@@ -135,6 +139,33 @@ def compute_rai(weights=None, save=True):
     return out
 
 
+def attribution_robustness(save=True):
+    """Is the gap headline stable across R&D attribution schemes? Compute the priority gaps
+    under 'named', 'class', and 'both', and the Spearman stability of the RAI ranking."""
+    from scipy.stats import spearmanr
+    from .rni import compute_rni
+    rni = compute_rni(save=False)[["RNI"]]
+    rankings, rows = {}, []
+    for scheme in ["named", "class", "both"]:
+        rai = compute_rai(save=False, scheme=scheme)[["RAI"]]
+        g = rni.join(rai, how="left")
+        g["RAI"] = g["RAI"].fillna(g["RAI"].min())
+        rni_mid, rai_mid = g["RNI"].median(), g["RAI"].median()
+        g["priority"] = (g["RNI"] >= rni_mid) & (g["RAI"] < rai_mid)
+        rankings[scheme] = g["RAI"]
+        rows.append({"scheme": scheme, "n_priority": int(g["priority"].sum()),
+                     "priority_gaps": ", ".join(sorted(g[g["priority"]].index))})
+    tab = pd.DataFrame(rows)
+    base = rankings["both"]
+    tab["spearman_RAI_vs_both"] = [round(float(spearmanr(base, rankings[s].reindex(base.index)).statistic), 3)
+                                   for s in tab["scheme"]]
+    if save:
+        tab.to_parquet(PROCESSED_DIR / "rai_attribution.parquet")
+    return tab
+
+
 if __name__ == "__main__":
     r = compute_rai()
     print(r[["gram", "projects", "investment", "pipeline", "named_projects", "RAI"]].round(2).to_string())
+    print("\n=== R&D attribution robustness ===")
+    print(attribution_robustness().to_string(index=False))
