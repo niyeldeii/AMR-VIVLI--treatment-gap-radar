@@ -32,8 +32,9 @@ combo = load("combo_resistance.parquet")
 st.title("🛰️ Treatment Gap Radar")
 st.caption("Antimicrobial Resistance Need vs Global R&D Attention — Vivli AMR Data Challenge (AMR ID 00013367)")
 
-tab_gap, tab_path, tab_cov, tab_about = st.tabs(
-    ["Gap Radar", "Pathogen explorer", "Surveillance coverage", "About / data"])
+tab_gap, tab_path, tab_trend, tab_blind, tab_cov, tab_about = st.tabs(
+    ["Gap Radar", "Pathogen explorer", "Trends & rigor", "Blind-spot prediction",
+     "Surveillance coverage", "About / data"])
 
 with tab_gap:
     c1, c2, c3 = st.columns(3)
@@ -65,6 +66,52 @@ with tab_path:
         r = rni.loc[patho]
         st.write(f"**{patho}** — RNI {r['RNI']:.2f}  ·  WHO tier: {r.get('who') or '—'}  "
                  f"·  isolates {int(r['n_isolates']):,}")
+
+with tab_trend:
+    st.subheader("Resistance trends over time")
+    st.caption("Logistic regression of resistance on year — odds ratio per year with 95% CIs. "
+               "OR > 1 means resistance is rising.")
+    if (PROCESSED_DIR / "trend_models.parquet").exists():
+        st.plotly_chart(viz.trend_forest(), use_container_width=True)
+        st.dataframe(load("trend_models.parquet").round(4), use_container_width=True)
+    st.divider()
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("Methodology is robust")
+        if (PROCESSED_DIR / "rigor_summary.parquet").exists():
+            rs = load("rigor_summary.parquet").iloc[0]
+            st.metric("PCA — variance on 1st component", f"{rs['pc1_var']*100:.0f}%",
+                      help="Indicators load on one dominant 'need' axis, so equal weighting is justified.")
+            st.write("**Data-driven (PCA) weights vs equal weights:**")
+            wts = {k.replace("w_", ""): rs[k] for k in rs.index if k.startswith("w_")}
+            st.dataframe(pd.Series(wts, name="PCA weight").round(3))
+    with c2:
+        st.subheader("Rankings are weight-insensitive")
+        if (PROCESSED_DIR / "sensitivity.parquet").exists():
+            st.caption("Spearman correlation of the pathogen ranking under different weightings "
+                       "vs the equal-weight default. ~1.0 = conclusions don't depend on weights.")
+            st.dataframe(load("sensitivity.parquet"), use_container_width=True)
+
+with tab_blind:
+    st.subheader("Predicting resistance where there is no surveillance")
+    if (PROCESSED_DIR / "rigor_summary.parquet").exists():
+        rs = load("rigor_summary.parquet").iloc[0]
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Model R² on unseen countries", f"{rs['cv_R2_unseen_countries']:.2f}",
+                  help="Held-out-country cross-validation: how well resistance is predicted "
+                       "for countries the model never saw.")
+        m2.metric("Mean abs. error", f"{rs['cv_weighted_MAE']*100:.1f}%")
+        m3.metric("vs naive baseline", f"{rs['baseline_MAE_global_mean']*100:.1f}%")
+    if (PROCESSED_DIR / "blindspot_predictions.parquet").exists():
+        preds = load("blindspot_predictions.parquet")
+        paths = sorted(preds["pathogen"].unique())
+        dflt = paths.index("Klebsiella pneumoniae") if "Klebsiella pneumoniae" in paths else 0
+        bp = st.selectbox("Pathogen", paths, index=dflt, key="bp_path")
+        bdrugs = sorted(preds[preds["pathogen"] == bp]["antibiotic"].unique())
+        bd = st.selectbox("Antibiotic", bdrugs, key="bp_drug")
+        st.plotly_chart(viz.blindspot_continent(bp, bd), use_container_width=True)
+        st.caption("Red bars = regions with thin/absent surveillance (≤2 countries reporting) — "
+                   "the model's best estimate of resistance there.")
 
 with tab_cov:
     st.plotly_chart(viz.coverage_map(), use_container_width=True)

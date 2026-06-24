@@ -95,3 +95,43 @@ def coverage_map():
     fig.update_layout(title="Surveillance coverage (data volume by country — blind spots in white)",
                       height=500, geo=dict(showframe=False))
     return fig
+
+
+# --------------------------------------------------- 6. trend forest (logistic OR/year)
+def trend_forest(trends=None):
+    trends = trends if trends is not None else load("trend_models.parquet")
+    t = trends.copy()
+    t["label"] = t["pathogen"] + " — " + t["drug"]
+    t = t.sort_values("OR_per_year")
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=t["OR_per_year"], y=t["label"], mode="markers",
+        marker=dict(size=9, color=t["OR_per_year"], colorscale="RdBu_r", cmid=1.0),
+        error_x=dict(type="data", symmetric=False,
+                     array=t["ci_hi"] - t["OR_per_year"],
+                     arrayminus=t["OR_per_year"] - t["ci_lo"]),
+        hovertext=[f"OR/yr {o:.3f} ({lo:.3f}–{hi:.3f}), p={p:.1e}, n={n:,}"
+                   for o, lo, hi, p, n in zip(t.OR_per_year, t.ci_lo, t.ci_hi, t.p_value, t.n)],
+        hoverinfo="text"))
+    fig.add_vline(x=1.0, line_dash="dot", line_color="grey")
+    fig.update_layout(title="Resistance trend over time — odds ratio per year (95% CI)",
+                      xaxis_title="OR per year  (>1 = resistance rising)", height=460,
+                      margin=dict(l=240))
+    return fig
+
+
+# --------------------------------------------- 7. blind-spot predictions by continent
+def blindspot_continent(pathogen, drug, preds=None):
+    preds = preds if preds is not None else load("blindspot_predictions.parquet")
+    sub = preds[(preds["pathogen"] == pathogen) & (preds["antibiotic"] == drug)].copy()
+    if sub.empty:
+        return go.Figure().update_layout(title=f"No prediction for {pathogen} — {drug}")
+    sub["surveillance"] = sub["thin_surveillance"].map({True: "thin (≤2 countries)", False: "observed"})
+    sub = sub.sort_values("pred_pctR", ascending=True)
+    fig = px.bar(sub, x="pred_pctR", y="continent", orientation="h", color="surveillance",
+                 color_discrete_map={"thin (≤2 countries)": "#d62728", "observed": "#1f77b4"},
+                 hover_data={"n_countries": True, "obs_pctR": ":.2f"},
+                 labels={"pred_pctR": "predicted % resistant"})
+    fig.update_layout(title=f"Predicted resistance by region — {pathogen} / {drug}",
+                      height=380, xaxis_range=[0, 1])
+    return fig
