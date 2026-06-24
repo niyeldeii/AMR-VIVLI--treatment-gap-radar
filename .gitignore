@@ -28,7 +28,7 @@
 *.pdf
 treatment_gap_radar/data_raw/
 treatment_gap_radar/data_processed/
-treatment_gap_radar/figures/*.csv
+treatment_gap_radar/figures/
 
 # 4) Python / Jupyter cruft
 __pycache__/

@@ -22,7 +22,7 @@ def minmax(s):
     return (s - lo) / (hi - lo)
 
 
-def compute_rni(weights=None):
+def compute_rni(weights=None, save=True):
     ind = pd.read_parquet(PROCESSED_DIR / "indicators.parquet")
     ind = ind[ind["n_isolates"] >= MIN_ISOLATES].copy()
     w = weights or _weights()
@@ -37,7 +37,8 @@ def compute_rni(weights=None):
     wsum = sum(w[c] for c in IND_COLS)
     ind["RNI"] = sum(norm[c + "_n"] * w[c] for c in IND_COLS) / wsum
     out = pd.concat([ind, norm], axis=1).sort_values("RNI", ascending=False)
-    out.to_parquet(PROCESSED_DIR / "rni.parquet")
+    if save:
+        out.to_parquet(PROCESSED_DIR / "rni.parquet")
     return out
 
 
