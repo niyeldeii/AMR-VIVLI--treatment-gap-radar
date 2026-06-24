@@ -58,9 +58,8 @@ def resistance_choropleth(pathogen, drug=None, min_n=20):
     sub = pc[pc["pathogen"] == pathogen]
     if drug:
         sub = sub[sub["antibiotic"] == drug]
-    agg = (sub.groupby("country_iso3").apply(
-        lambda d: pd.Series({"pctR": 100 * d["nR"].sum() / d["n"].sum(), "n": d["n"].sum()}),
-        include_groups=False).reset_index())
+    agg = sub.groupby("country_iso3", as_index=False).agg(nR=("nR", "sum"), n=("n", "sum"))
+    agg["pctR"] = 100 * agg["nR"] / agg["n"]
     agg = agg[agg["n"] >= min_n]
     title = f"{pathogen}" + (f" — {drug}" if drug else "") + " : % resistant by country"
     fig = px.choropleth(agg, locations="country_iso3", color="pctR",
@@ -74,9 +73,8 @@ def resistance_choropleth(pathogen, drug=None, min_n=20):
 def resistance_trend(pathogen, drug):
     pc = load("combo_resistance.parquet")
     sub = pc[(pc["pathogen"] == pathogen) & (pc["antibiotic"] == drug)]
-    ts = (sub.groupby("year").apply(
-        lambda d: 100 * d["nR"].sum() / d["n"].sum(), include_groups=False)
-        .reset_index(name="pctR"))
+    ts = sub.groupby("year", as_index=False).agg(nR=("nR", "sum"), n=("n", "sum"))
+    ts["pctR"] = 100 * ts["nR"] / ts["n"]
     fig = px.line(ts, x="year", y="pctR", markers=True,
                   labels={"pctR": "% resistant", "year": "Year"})
     fig.update_layout(title=f"{pathogen} — {drug}: resistance trend", height=420,

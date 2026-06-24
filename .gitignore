@@ -13,6 +13,7 @@
 !/.gitignore
 !/README.md
 !/PLAN.md
+!/requirements.txt
 !/treatment_gap_radar/
 
 # 3) Defense-in-depth: even inside the code folder, never track data
