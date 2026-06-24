@@ -88,7 +88,10 @@ regressions of resistance on calendar year (odds ratio per year, 95% CI). An ear
 projected each logistic trajectory forward and solved for the year %R crosses 50%, propagating the
 slope CI. A gradient-boosted regressor predicted %R from generalizable features (pathogen, drug, drug
 class, Gram, continent, World Bank income tier, year), validated by holding out whole countries
-(GroupKFold). Estimates were compared to WHO GLASS 2022 figures.
+(GroupKFold). Estimates were compared to WHO GLASS 2022 figures. Finally, a causal-inference-style
+panel model (pathogen × year resistance; year × R&D-attention-tertile interaction; pathogen fixed
+effects) tested whether R&D attention relates to the *rate* of resistance growth, with a transparent
+counterfactual scenario.
 
 ## 3. Results
 
@@ -119,6 +122,15 @@ Declining agents (MRSA, VRE, pneumococcal penicillin) showed no crossing.
 ### 3.5 Predicting blind spots
 The gradient-boosted model attained R² = 0.73 on held-out countries (weighted MAE 8.1% vs 18.4% for a
 global-mean baseline), enabling resistance estimates for under-surveilled regions.
+
+### 3.6 R&D is reactive, not pre-emptive
+In the panel model, pathogens with the **highest** R&D attention had **rising** resistance
+(+0.18 %R/year, p < 0.001), while lower-attention pathogens were stable or declining, after adjusting
+for each pathogen's baseline (fixed effects). This is consistent with R&D attention being allocated
+*reactively* — concentrated where resistance is already worsening — rather than pre-emptively. The
+illustrative counterfactual indicates substantial avertable resistance (e.g. ≈31 percentage points
+for *K. pneumoniae* carbapenem by 2035 under best-case growth), underscoring the value of acting
+earlier and in the blind spots.
 
 ## 4. Discussion
 

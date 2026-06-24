@@ -12,7 +12,7 @@ import sys
 
 import pandas as pd
 
-from . import harmonize, indicators, gap, models, predict, rai, forecast, validate
+from . import harmonize, indicators, gap, models, predict, rai, forecast, validate, causal
 from .paths import PROCESSED_DIR
 
 # pathogen-drug pairs used for trend models + bootstrap CIs
@@ -39,6 +39,8 @@ def _rigor(with_ml=True):
     rai.attribution_robustness()                 # gap stable across R&D attribution schemes
     forecast.forecast_table(KEY_PAIRS)           # early-warning: project trajectories to threshold
     validate.validate()                          # external benchmark vs WHO GLASS
+    causal.growth_by_rd_level()                  # is R&D reactive? growth by attention level
+    causal.counterfactual()                      # illustrative averted-resistance scenario
     metrics = {}
     if with_ml:
         metrics = predict.evaluate()

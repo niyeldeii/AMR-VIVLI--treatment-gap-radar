@@ -197,6 +197,17 @@ with tabs[3]:
             st.caption("MRSA matches GLASS almost exactly. Our 3GC estimates sit below GLASS medians "
                        "(ATLAS high-income sampling bias); the Sub-Saharan-Africa subset brackets the "
                        "high end — consistent with the surveillance blind-spot argument.")
+    if have("causal_growth.parquet"):
+        st.divider()
+        st.subheader("Causal layer — is R&D reactive?")
+        st.caption("Resistance growth rate by R&D-attention tertile, controlling for each pathogen's "
+                   "baseline (fixed effects). High-R&D pathogens growing *fastest* indicates "
+                   "investment is **chasing** resistance, not pre-empting it (observational).")
+        chart(viz.causal_growth_bar(), "causal_bar")
+        if have("causal_counterfactual.parquet"):
+            with st.expander("Counterfactual — 2035 resistance averted under best-case growth (illustrative)"):
+                cf = load("causal_counterfactual.parquet")
+                table(cf[["pathogen", "drug", "pctR_2035", "pctR_2035_bestcase", "averted_2035_pts"]])
 
 # ============================================================= 4. BLIND-SPOT PREDICTION
 with tabs[4]:
@@ -274,6 +285,9 @@ with tabs[7]:
 - 🌍 **The biggest blind spot is geographic.** Sub-Saharan Africa is barely surveilled, yet SPIDAAR
   shows **82 % (*E. coli*) and 90 % (*K. pneumoniae*) ceftriaxone resistance** — high burden, low
   visibility.
+- 🔁 **R&D is reactive, not pre-emptive.** The pathogens receiving the most R&D are precisely those
+  whose resistance is still *rising* (+0.18 %/yr, p<0.001); lower-attention pathogens are stable or
+  declining. Investment chases resistance rather than getting ahead of it.
 
 ### Stewardship & policy implications
 1. **Targeted R&D** for the Gram-positive gaps (VRE).

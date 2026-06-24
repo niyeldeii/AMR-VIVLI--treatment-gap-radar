@@ -111,6 +111,14 @@ surveillance**. Validated by holding out **entire countries** (GroupKFold):
 
 This turns the framework into a tool that can *estimate* resistance where data is missing.
 
+## 6b. Causal layer — is R&D reactive?
+
+`src/causal.py`. A pathogen × year resistance panel with a year × R&D-attention-tertile interaction
+and **pathogen fixed effects** tests whether R&D attention relates to the *rate* of resistance growth.
+Result: the **highest-R&D pathogens are those still rising** (+0.18 %R/yr, p<0.001) while
+lower-attention pathogens are stable/declining — R&D **chases** resistance rather than pre-empting it
+(observational, not causal proof). A transparent counterfactual quantifies avertable 2035 resistance.
+
 ## 7. Key findings
 
 - **The clearest treatment gaps are Gram-positive:** *Enterococcus faecium* (VRE) and
@@ -123,6 +131,9 @@ This turns the framework into a tool that can *estimate* resistance where data i
 - **The biggest blind spot is geographic.** Sub-Saharan Africa is barely surveilled, yet SPIDAAR
   shows **82% (*E. coli*) and 90% (*K. pneumoniae*) ceftriaxone resistance** — high burden, low
   visibility, a double failure of surveillance *and* R&D reach.
+- **R&D is reactive, not pre-emptive** (causal layer). The highest-R&D pathogens are those whose
+  resistance is still *rising* (+0.18%/yr, p<0.001); lower-attention pathogens are stable or
+  declining — investment chases resistance instead of getting ahead of it.
 
 ### Stewardship implications
 1. Targeted R&D for the Gram-positive gaps (VRE).
@@ -173,9 +184,13 @@ treatment_gap_radar/
     indicators.py    the six resistance indicators
     rni.py / rai.py / gap.py   the two indices + gap
     models.py        trends, PCA weights, sensitivity, bootstrap CIs
+    forecast.py      early-warning: project trajectories to 50% threshold
     geo.py / predict.py   blind-spot prediction model
+    causal.py        is R&D reactive? panel growth model + counterfactual
+    validate.py      external validation vs WHO GLASS 2022
+    util.py          shared helpers (minmax)
     viz.py           shared Plotly figures
-    pipeline.py      single end-to-end build (harmonize -> analysis -> rigor + ML)
+    pipeline.py      single end-to-end build (harmonize -> analysis -> rigor + ML + causal)
   app/dashboard.py   Streamlit app
   notebooks/         analysis notebook + builder
   data_processed/    aggregate results (parquet) — raw/isolate-level data excluded

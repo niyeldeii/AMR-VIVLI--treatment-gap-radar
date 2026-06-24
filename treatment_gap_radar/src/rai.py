@@ -21,6 +21,7 @@ import yaml
 
 from .paths import raw_path, PROCESSED_DIR, CONFIG_DIR
 from .canon import _load as _load_yaml
+from .util import minmax
 
 MIN_END_YEAR = 2010           # modern resistance era (projects ending >= this)
 CLINICAL_WEIGHT = 2.0         # weight for therapeutics/diagnostics projects vs basic research
@@ -63,12 +64,6 @@ def _gram_of():
     for p, meta in _load_yaml("pathogens.yaml").items():
         out[p] = meta["gram"]
     return out
-
-
-def minmax(s):
-    s = s.astype(float)
-    lo, hi = s.min(), s.max()
-    return pd.Series(0.5, index=s.index) if hi == lo else (s - lo) / (hi - lo)
 
 
 def load_projects():

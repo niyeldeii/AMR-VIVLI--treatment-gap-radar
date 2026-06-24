@@ -1,9 +1,9 @@
 """Resistance Need Index: normalize the six indicators and combine via weights."""
-import numpy as np
 import pandas as pd
 import yaml
 
 from .paths import PROCESSED_DIR, CONFIG_DIR
+from .util import minmax
 
 IND_COLS = ["prevalence", "mic_drift", "mdr", "geo_spread", "scarcity", "pediatric"]
 MIN_ISOLATES = 200   # pathogens below this are excluded from the ranked index (too sparse)
@@ -12,14 +12,6 @@ MIN_ISOLATES = 200   # pathogens below this are excluded from the ranked index (
 def _weights():
     with open(CONFIG_DIR / "weights.yaml", encoding="utf-8") as f:
         return yaml.safe_load(f)["rni"]
-
-
-def minmax(s):
-    s = s.astype(float)
-    lo, hi = s.min(), s.max()
-    if not np.isfinite(lo) or hi == lo:
-        return pd.Series(0.5, index=s.index)
-    return (s - lo) / (hi - lo)
 
 
 def compute_rni(weights=None, save=True):

@@ -101,6 +101,16 @@ Gradient-boosted model predicts resistance from **generalizable** features (path
 
 ---
 
+## Is R&D reactive? (causal layer)
+
+Panel model (pathogen × year, pathogen fixed effects): resistance **growth rate** by R&D-attention level.
+
+- **High-R&D pathogens are the ones still rising** (+0.18 %R/yr, p<0.001); low/mid-attention are stable/declining.
+- → R&D **chases** resistance rather than pre-empting it.
+- Counterfactual: ~31 pts of *K. pneumoniae* carbapenem resistance avertable by 2035 under best-case growth.
+
+---
+
 ## Findings & implications
 
 1. **Targeted R&D for Gram-positive gaps** — VRE / *E. faecium*.

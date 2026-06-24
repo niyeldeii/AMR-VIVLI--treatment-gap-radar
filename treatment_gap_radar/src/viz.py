@@ -159,6 +159,22 @@ def forecast_plot(pathogen, drug, threshold=0.5, curves=None):
     return fig
 
 
+# ----------------------------------------- 6c. causal: growth rate by R&D-attention level
+def causal_growth_bar(growth=None):
+    growth = growth if growth is not None else load("causal_growth.parquet")
+    order = ["Low", "Mid", "High"]
+    g = growth.set_index("rd_level").reindex(order).reset_index()
+    fig = px.bar(g, x="rd_level", y="growth_pctR_per_year", color="growth_pctR_per_year",
+                 color_continuous_scale="RdBu_r", color_continuous_midpoint=0,
+                 labels={"rd_level": "R&D attention tertile",
+                         "growth_pctR_per_year": "resistance growth (%R / year)"},
+                 hover_data={"n_pathogens": True})
+    fig.add_hline(y=0, line_color="grey")
+    fig.update_layout(title="Is R&D reactive? Resistance growth by R&D-attention level "
+                            "(pathogen fixed effects)", height=420, coloraxis_showscale=False)
+    return fig
+
+
 # --------------------------------------------- 7. blind-spot predictions by continent
 def blindspot_continent(pathogen, drug, preds=None):
     preds = preds if preds is not None else load("blindspot_predictions.parquet")

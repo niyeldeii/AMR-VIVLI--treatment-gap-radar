@@ -172,7 +172,23 @@ pd.read_parquet(PROCESSED_DIR / "glass_validation.parquet")[
     ["pathogen", "drug", "our_pctR", "glass_pctR", "africa_subset_pctR", "delta_vs_glass"]]
 """)
 
-md("""## 12 · Key findings
+md("""## 12 · Causal layer — is R&D reactive?
+A pathogen × year panel of resistance with a year × R&D-attention-level interaction and **pathogen
+fixed effects** (each pathogen's baseline absorbed). The interaction asks whether resistance grows at
+different rates for high- vs low-R&D pathogens. *Observational, not proof of causation* — but a
+defensible test of whether R&D is keeping pace with, or chasing, resistance.""")
+code("pd.read_parquet(PROCESSED_DIR / 'causal_growth.parquet')")
+code("viz.causal_growth_bar()")
+md("""**Result:** the pathogens receiving the **most** R&D are those whose resistance is still
+*rising*, while lower-attention pathogens are stable/declining — evidence that R&D attention is
+**reactive** (chasing resistance) rather than pre-emptive. Below, an illustrative counterfactual:
+2035 resistance that best-case (slowest-observed) growth would avert.""")
+code("""
+pd.read_parquet(PROCESSED_DIR / "causal_counterfactual.parquet")[
+    ["pathogen", "drug", "pctR_2035", "pctR_2035_bestcase", "averted_2035_pts"]].head(8)
+""")
+
+md("""## 13 · Key findings
 
 - **The clearest treatment gaps are Gram-positive:** ***Enterococcus faecium* (VRE)** — high
   resistance need, little targeted R&D — and ***Staphylococcus epidermidis***. These are genuine

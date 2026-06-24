@@ -102,6 +102,11 @@ figures.
 - **External validation.** MRSA matches GLASS almost exactly (36.6% vs 35%). Our 3GC estimates sit
   below GLASS medians (ATLAS high-income sampling bias) while the Africa subset brackets the high
   end — corroborating both our pipeline and the blind-spot argument.
+- **R&D is reactive, not pre-emptive (causal layer).** In a pathogen × year panel with pathogen fixed
+  effects, the highest-R&D pathogens had *rising* resistance (+0.18 %R/yr, p<0.001) while
+  lower-attention pathogens were stable/declining — investment chases resistance rather than getting
+  ahead of it. A counterfactual suggests ≈31 points of *K. pneumoniae* carbapenem resistance averted
+  by 2035 under best-case growth.
 
 ## 5. Stewardship and policy implications
 
