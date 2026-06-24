@@ -7,7 +7,6 @@
 Stages: harmonize -> indicators -> RNI/RAI/gap -> rigor (CIs, trends, PCA, sensitivity)
 -> ML blind-spot prediction.  All outputs land in data_processed/ as parquet.
 """
-import json
 import sys
 
 import pandas as pd
@@ -48,7 +47,6 @@ def _rigor(with_ml=True):
     summary = {**{f"w_{k}": v for k, v in pca["weights"].items()},
                "pc1_var": pca["explained_variance"][0], **metrics}
     pd.DataFrame([summary]).to_parquet(PROCESSED_DIR / "rigor_summary.parquet")
-    (PROCESSED_DIR / "rigor_summary.json").write_text(json.dumps(summary, indent=2, default=float))
     return summary
 
 

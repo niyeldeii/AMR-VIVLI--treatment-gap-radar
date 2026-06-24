@@ -7,7 +7,7 @@ A reproducible framework for the **Vivli AMR Surveillance Open Data Re-use Data 
 **Global AMR R&D Hub** investment/pipeline data to measure, for every pathogen, whether research and
 development attention is aligned with resistance need — and to flag the gaps.
 
-> 📄 Full write-up: [`treatment_gap_radar/REPORT.md`](treatment_gap_radar/REPORT.md)  ·
+> 📄 Full write-up: [`treatment_gap_radar/MANUSCRIPT.md`](treatment_gap_radar/MANUSCRIPT.md)  ·
 > 📓 Notebook: [`treatment_gap_radar/notebooks/Treatment_Gap_Radar.ipynb`](treatment_gap_radar/notebooks/Treatment_Gap_Radar.ipynb)  ·
 > 🛰️ Dashboard: `streamlit run treatment_gap_radar/app/dashboard.py`
 
@@ -144,7 +144,8 @@ lower-attention pathogens are stable/declining — R&D **chases** resistance rat
 
 | Deliverable | Path |
 |---|---|
-| 📄 Manuscript-style report | `treatment_gap_radar/REPORT.md` |
+| 📄 Wellcome-format manuscript | `treatment_gap_radar/MANUSCRIPT.md` |
+| 🖥️ Slide deck (Marp) | `treatment_gap_radar/SLIDES.md` |
 | 📓 Reproducible analysis notebook (+ HTML export) | `treatment_gap_radar/notebooks/Treatment_Gap_Radar.ipynb` / `.html` |
 | 🛰️ Interactive Streamlit dashboard | `treatment_gap_radar/app/dashboard.py` (6 tabs) |
 | 🧱 Documented schema findings | `treatment_gap_radar/PROFILING_NOTES.md` |
@@ -194,7 +195,7 @@ treatment_gap_radar/
   app/dashboard.py   Streamlit app
   notebooks/         analysis notebook + builder
   data_processed/    aggregate results (parquet) — raw/isolate-level data excluded
-  REPORT.md, PROFILING_NOTES.md, README.md
+  MANUSCRIPT.md, SLIDES.md, PROFILING_NOTES.md, README.md
 ```
 
 ## 11. Data governance

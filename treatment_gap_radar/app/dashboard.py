@@ -66,7 +66,7 @@ with st.sidebar:
 st.title("🛰️ Treatment Gap Radar")
 st.markdown("#### Does global antimicrobial R&D go where resistance is actually getting worse?")
 
-tabs = st.tabs(["Overview", "Gap Radar", "Pathogen explorer", "Trends & rigor",
+tabs = st.tabs(["Overview", "Gap Radar", "Pathogen explorer", "Trends · rigor · causal",
                 "Blind-spot prediction", "Surveillance coverage", "Methodology",
                 "Findings & implications", "About / data"])
 
@@ -84,6 +84,9 @@ surfaces where the world is *under-developing* therapies relative to need.
     c3.metric("R&D tracked", "$18.9 B")
     if rs is not None:
         c4.metric("Indicators on 1 PCA axis", f"{rs['pc1_var']*100:.0f}%")
+    st.caption("**How to read the radar:** each bubble is a pathogen — x = resistance need, "
+               "y = R&D attention, size = isolates tested. Dashed lines are the medians; the "
+               "**bottom-right** quadrant (high need, low attention) holds the priority treatment gaps.")
     chart(viz.gap_quadrant(gap), "ov_gap")
     st.success("**Headline:** the clearest gaps are Gram-positive (VRE / *E. faecium*, "
                "*S. epidermidis*); broad-spectrum Gram-negative R&D already covers the "
@@ -326,3 +329,7 @@ results (minimum cell count **n ≥ 30**). Isolate-level data stays local.
 > Therapeutics, Johnson & Johnson, Paratek, Pfizer, Shionogi, Venatorx, Venus Remedies Limited,
 > obtained through https://amr.vivli.org
 """)
+
+st.divider()
+st.caption("🛰️ Treatment Gap Radar · Vivli AMR Surveillance Open Data Re-use Data Challenge "
+           "(AMR ID 00013367) · data via https://amr.vivli.org · aggregate results only (n ≥ 30)")

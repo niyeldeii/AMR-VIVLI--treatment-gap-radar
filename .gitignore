@@ -12,7 +12,6 @@
 # 2) Re-include repo meta + the code project folder
 !/.gitignore
 !/README.md
-!/PLAN.md
 !/requirements.txt
 !/treatment_gap_radar/
 
